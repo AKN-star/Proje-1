@@ -6,9 +6,12 @@
 
 ## Durum
 
-- **Aktif faz:** Faz 0 (gün-0 altyapısı) — bu branch'te kuruldu.
-- Bekleyen insan adımları: GitHub remote (push için ön şart), Neon + Vercel
-  hesapları (Faz 1 canlıya kadar), Resend (Faz 1).
+- **Aktif faz:** Faz 1 kod tamam (PR #2, CI yeşil) — merge sonrası Faz 2
+  (istatistik + oy) başlar.
+- Bekleyen insan adımları: PR #1 ve #2 merge; Neon + Vercel hesapları
+  (canlı yayın için); opsiyonel Resend anahtarı.
+- Yerel e2e: `npm run build && npm start` kullan (`next dev` çok işlemli,
+  dosya tabanlı PGlite çökebiliyor — spec kapanış notları).
 
 ## Komutlar
 
