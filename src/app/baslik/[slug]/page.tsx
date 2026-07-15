@@ -5,7 +5,7 @@ import { getTopicBySlug } from "@/lib/queries/topics";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-// T2 merge sonrası: import { MedicalDisclaimer } from "@/components/medical-disclaimer";
+import { MedicalDisclaimer } from "@/components/medical-disclaimer";
 
 const TYPE_LABELS: Record<string, string> = {
   drug: "İlaç",
@@ -62,7 +62,7 @@ export default async function TopicPage({
         {topic.summary && <p className="text-muted-foreground">{topic.summary}</p>}
       </div>
 
-      {/* T2 merge sonrası: <MedicalDisclaimer /> */}
+      <MedicalDisclaimer />
 
       <Link
         href={`/baslik/${topic.slug}/deneyim-yaz`}
