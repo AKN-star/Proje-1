@@ -24,6 +24,22 @@ export async function getDb(): Promise<Db> {
   } else {
     const { drizzle } = await import("drizzle-orm/pglite");
     db = drizzle(".pglite/", { schema });
+    await autoSeedIfEmpty(db);
   }
   return db;
+}
+
+/**
+ * Dev modda (PGlite, DATABASE_URL yok) topics tablosu boşsa otomatik
+ * seed çalıştırır — `npm run db:seed` script'i yok (Faz 1'de bağımlılık
+ * eklenmeden CLI girişi kurulamadı); dev sunucusu ilk `getDb()`
+ * çağrısında kendini tohumlar.
+ */
+async function autoSeedIfEmpty(target: Db): Promise<void> {
+  const { seed } = await import("./seed");
+  const { count } = await import("drizzle-orm");
+  const [row] = await target.select({ count: count() }).from(schema.topics);
+  if (!row || Number(row.count) === 0) {
+    await seed(target);
+  }
 }
