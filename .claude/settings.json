@@ -17,7 +17,15 @@
       "Bash(git log:*)",
       "Bash(git branch:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Edit",
+      "Write",
+      "Bash(git worktree:*)",
+      "Bash(git checkout:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh pr create:*)",
+      "Bash(npm ci:*)"
     ]
   }
 }

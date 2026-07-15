@@ -37,6 +37,15 @@ yarn-error.log*
 # local PGlite data (dev DB)
 /.pglite/
 
+# AgentOS loop: isolated worker worktrees + per-run memory
+/wt-*
+loop/memory/STATE.md
+loop/memory/trust.tsv
+loop/memory/goal-ledger.tsv
+loop/memory/usage.log
+loop/memory/last-*.json
+loop/work-order.json
+
 # vercel
 .vercel
 
