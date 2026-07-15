@@ -17,10 +17,15 @@ import { sql } from "drizzle-orm";
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
-  username: text("username").notNull().unique(),
+  // NULL = takma ad onboarding'i bekliyor (master plan sözleşmesi);
+  // yazma eylemleri username + kvkk_consent_at dolmadan reddedilir.
+  username: text("username").unique(),
   locale: text("locale").notNull().default("tr"),
   role: text("role").notNull().default("user"),
   proBadge: text("pro_badge"),
+  // KVKK açık rıza anı (sağlık verisi = özel nitelikli kişisel veri);
+  // onboarding'de checkbox işaretlenince yazılır.
+  kvkkConsentAt: timestamp("kvkk_consent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   // Auth.js AdapterUser'ın gerektirdiği alanlar (master plan sözleşmesi
   // dışında, Auth.js'in kendi ihtiyacı; hepsi nullable):

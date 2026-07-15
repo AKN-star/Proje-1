@@ -39,7 +39,9 @@ Reddit/Ekşi tarzı platformlar var ama ilaç ve sağlık deneyimlerine odaklana
 users                  id, email, email_verified, username(unique, takma ad; NULL=onboarding bekliyor),
                        locale('tr'|'en'), role('user'|'pro'|'mod'|'admin'),
                        pro_badge('doctor'|'pharmacist'|null), kvkk_consent_at, created_at
-                       (+ Auth.js adapter tabloları: accounts, sessions, verification_tokens)
+                       (+ Auth.js adapter tabloları: accounts, sessions, verification_tokens;
+                       adapter uyumu için email_verified kolonu DB'de "emailVerified" adıyla,
+                       name/image kolonları nullable olarak tutulur)
 topics                 id, slug(unique), type('drug'|'condition'|'treatment'),
                        status('active'|'pending'|'rejected'), created_by(FK users, null=seed),
                        canonical_name, atc_code(null olabilir)
