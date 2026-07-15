@@ -1,8 +1,5 @@
-// T1 ile AYNI tablo tanımı; merge'de tek kopya schema.ts'te kalacak, buradan
-// import edilecek (kontrolcü birleştirir). T1 ve T3 aynı dalgada (W1)
-// paralel çalıştığı için `users` tablosu burada da tanımlanır — nihai
-// birleştirmede schema.ts'teki tanım referans kabul edilir ve bu dosyadaki
-// kopya schema.ts'ten import edilecek şekilde güncellenir.
+// Auth.js adapter tabloları. `users`ın kanonik tanımı src/db/schema.ts'te;
+// buradan yalnız yeniden dışa verilir.
 //
 // Auth.js (@auth/drizzle-adapter) Postgres adapter'ının beklediği ek
 // tablolar: account, session, verificationToken. Adapter dokümantasyonundaki
@@ -17,28 +14,12 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "@auth/core/adapters";
+import { users } from "./schema";
 
-/**
- * docs/master-plan.md "Veri Modeli" + spec T1 sözleşmesi.
- * Auth.js AdapterUser arayüzü için gerekli name/emailVerified/image
- * sütunları da (nullable) eklenmiştir; bunlar master plan sözleşmesinin
- * dışında Auth.js'in kendi ihtiyacıdır.
- */
-export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  email: text("email").notNull().unique(),
-  username: text("username").notNull().unique(),
-  locale: text("locale").notNull().default("tr"),
-  role: text("role").notNull().default("user"),
-  proBadge: text("pro_badge"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  // Auth.js AdapterUser alanları:
-  name: text("name"),
-  emailVerified: timestamp("emailVerified", { mode: "date" }),
-  image: text("image"),
-});
+// W1 birleştirmesi tamamlandı: `users`'ın tek kanonik tanımı schema.ts'te
+// (Auth.js'in name/emailVerified/image alanları oraya eklendi); burası
+// yalnız adapter'ın ek tablolarını tanımlar ve users'ı yeniden dışa verir.
+export { users };
 
 export const accounts = pgTable(
   "account",

@@ -22,6 +22,11 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("user"),
   proBadge: text("pro_badge"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  // Auth.js AdapterUser'ın gerektirdiği alanlar (master plan sözleşmesi
+  // dışında, Auth.js'in kendi ihtiyacı; hepsi nullable):
+  name: text("name"),
+  emailVerified: timestamp("emailVerified", { mode: "date" }),
+  image: text("image"),
 });
 
 export const topics = pgTable("topics", {
