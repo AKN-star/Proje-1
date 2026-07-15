@@ -52,3 +52,6 @@ loop/work-order.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# yerel sablon kopyasi (kurulum loop/ altina yapildi)
+/AgentOS-Template/
