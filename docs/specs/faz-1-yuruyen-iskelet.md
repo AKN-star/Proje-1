@@ -106,3 +106,23 @@ lint+typecheck+vitest yeşil; CI yeşil; dev sunucuda canlı akış: giriş →
 deneyim yaz → sayfada gör; final review bulguları kapatıldı; progress.md
 güncel. Vercel canlısı insan adımına bağlı (Neon+Vercel hesapları) —
 faz kapanışında kullanıcıya tek seferde istenir.
+
+## Kapanış notları (final review sonrası, 2026-07-15)
+
+- Spec'in sessizce düşürdüğü master-plan şartları kapanışta eklendi:
+  `users.kvkk_consent_at`, username NULL=onboarding, `/hosgeldin`
+  onboarding sayfası (takma ad + KVKK açık rıza checkbox'ı) ve yazma
+  yollarında onboarding guard'ı (sayfa + action). Migration 0002.
+- Review düzeltmeleri: topicId artık form'dan gelmiyor (slug'dan aktif
+  topic server-side çözülür); purpose da body ile birlikte moderate()
+  çağrısından geçer; e-posta gönderici adresi tek sabit (EMAIL_FROM);
+  prod'da RESEND_API_KEY yoksa açık hata.
+- Açık erteleme: submitExperience action'ının kendisi (form parse +
+  redirect dalları) entegrasyon testi dışında; çekirdek insert +
+  onboarding + validasyon PGlite testli. Faz 2'de useActionState'e
+  geçilirse action testi birlikte eklenecek.
+- Bilinen kısıt: `next dev` sayfaları ve route handler'ları ayrı Node
+  işlemlerinde koşturabiliyor; dosya tabanlı PGlite ikinci işlemde
+  çökebiliyor. Yerel uçtan uca doğrulama için `npm run build && npm
+  start` (tek işlem) kullanın; Neon (DATABASE_URL) bağlanınca sorun
+  ortadan kalkar.

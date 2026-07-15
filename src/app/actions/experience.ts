@@ -8,11 +8,14 @@
  */
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { and, eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
+import { topics } from "@/db/schema";
 import { validateExperienceInput } from "@/lib/validation/experience";
 import { moderate } from "@/lib/ai/moderate";
 import { insertExperience, statusForVerdict } from "@/lib/experiences/create";
+import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
 
 const FIELD_ORDER = [
   "purpose",
@@ -35,10 +38,28 @@ export async function submitExperience(formData: FormData): Promise<void> {
   }
 
   const slug = String(formData.get("slug") ?? "");
-  const topicId = String(formData.get("topicId") ?? "");
   const returnPath = `/baslik/${slug}/deneyim-yaz`;
 
-  if (!slug || !topicId) {
+  if (!slug) {
+    redirect(`${returnPath}?hata=_root`);
+  }
+
+  const db = await getDb();
+
+  // Takma ad + KVKK rızası olmadan yazma yok (master plan sözleşmesi).
+  const profile = await getOnboardingProfile(db, session.user.id);
+  if (!isOnboarded(profile)) {
+    redirect(`/hosgeldin?next=${encodeURIComponent(returnPath)}`);
+  }
+
+  // topicId form'dan alınmaz: sahte id ile başka/pasif bir başlığa
+  // yazılamasın diye slug'dan yalnız aktif topic server-side çözülür.
+  const [topic] = await db
+    .select({ id: topics.id })
+    .from(topics)
+    .where(and(eq(topics.slug, slug), eq(topics.status, "active")))
+    .limit(1);
+  if (!topic) {
     redirect(`${returnPath}?hata=_root`);
   }
 
@@ -56,14 +77,18 @@ export async function submitExperience(formData: FormData): Promise<void> {
     redirect(`${returnPath}?hata=${firstField}`);
   }
 
-  const moderation = await moderate(validation.data.body, "experience");
+  // purpose da yayınlanan serbest metindir — body ile birlikte tek
+  // çağrıda moderasyondan geçer (kritik kural #3).
+  const moderation = await moderate(
+    `${validation.data.purpose}\n\n${validation.data.body}`,
+    "experience",
+  );
   if (moderation.verdict === "block") {
     redirect(`${returnPath}?hata=moderasyon`);
   }
 
-  const db = await getDb();
   const status = statusForVerdict(moderation.verdict);
-  await insertExperience(db, validation.data, session.user.id, topicId, status);
+  await insertExperience(db, validation.data, session.user.id, topic.id, status);
 
   revalidatePath(`/baslik/${slug}`);
   redirect(`/baslik/${slug}`);

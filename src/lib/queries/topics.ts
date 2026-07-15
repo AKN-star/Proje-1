@@ -199,6 +199,9 @@ export async function getTopicBySlug(
     topic: topicRow,
     experiences: experienceRows.map((row) => ({
       ...row,
+      // Yazma eylemi onboarding (username) şartına bağlı; NULL yalnız
+      // teorik durumda kalır ama tip daraltması için güvenli varsayılan.
+      authorUsername: row.authorUsername ?? "anonim",
       sideEffects: sideEffectsByExperience.get(row.id) ?? [],
     })),
   };

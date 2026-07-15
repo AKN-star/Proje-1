@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { buttonVariants } from "@/components/ui/button";
 import { MedicalDisclaimer } from "@/components/medical-disclaimer";
 import { submitExperience } from "@/app/actions/experience";
+import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
 
 // Canlı DB verisi gösterir; build sırasında prerender edilmez (PGlite
 // build worker'larında paralel açılamaz, veri de istekte taze olmalı).
@@ -40,6 +41,15 @@ export default async function DeneyimYazPage({
   }
 
   const db = await getDb();
+
+  // Takma ad + KVKK rızası tamamlanmadan yazma ekranı açılmaz.
+  const profile = await getOnboardingProfile(db, session.user.id);
+  if (!isOnboarded(profile)) {
+    redirect(
+      `/hosgeldin?next=${encodeURIComponent(`/baslik/${slug}/deneyim-yaz`)}`,
+    );
+  }
+
   const result = await getTopicBySlug(db, slug, "tr");
   if (!result) {
     notFound();
@@ -89,7 +99,6 @@ export default async function DeneyimYazPage({
         <CardContent>
           <form action={submitExperience} className="flex flex-col gap-5">
             <input type="hidden" name="slug" value={topic.slug} />
-            <input type="hidden" name="topicId" value={topic.id} />
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor="purpose" className="text-sm font-medium">
