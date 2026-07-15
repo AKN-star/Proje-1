@@ -10,6 +10,10 @@ import { buttonVariants } from "@/components/ui/button";
 import { MedicalDisclaimer } from "@/components/medical-disclaimer";
 import { submitExperience } from "@/app/actions/experience";
 
+// Canlı DB verisi gösterir; build sırasında prerender edilmez (PGlite
+// build worker'larında paralel açılamaz, veri de istekte taze olmalı).
+export const dynamic = "force-dynamic";
+
 const ERROR_MESSAGES: Record<string, string> = {
   purpose: "Amaç 3 ile 200 karakter arasında olmalıdır.",
   body: "Metin 10 ile 5000 karakter arasında olmalıdır.",

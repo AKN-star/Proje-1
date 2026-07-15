@@ -7,6 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { MedicalDisclaimer } from "@/components/medical-disclaimer";
 
+// Canlı DB verisi gösterir; build sırasında prerender edilmez (PGlite
+// build worker'larında paralel açılamaz, veri de istekte taze olmalı).
+export const dynamic = "force-dynamic";
+
 const TYPE_LABELS: Record<string, string> = {
   drug: "İlaç",
   condition: "Hastalık",

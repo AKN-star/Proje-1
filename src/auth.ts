@@ -68,6 +68,9 @@ export const {
   signOut,
 } = NextAuth({
   adapter,
+  // Vercel'de AUTH_TRUST_HOST otomatik; yerel `next start` ve benzeri
+  // ortamlar için host'a açıkça güvenilir (reverse proxy arkası dahil).
+  trustHost: true,
   providers: [emailProvider],
   session: { strategy: "database" },
   pages: {
