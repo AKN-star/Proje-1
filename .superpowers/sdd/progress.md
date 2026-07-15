@@ -5,7 +5,7 @@ davranışsal doğrulama → final review → merge → CLAUDE.md güncelle.
 
 | Faz | Durum | Not |
 |---|---|---|
-| 0 — Gün-0 altyapısı | kod tamam, insan adımı bekliyor | Branch `faz-0-altyapi`. GitHub remote yok → push/PR bekliyor. Neon/Vercel bağlanmadı. |
+| 0 — Gün-0 altyapısı | kod tamam, merge bekliyor | Branch `faz-0-altyapi` GitHub'a push'landı (AKN-star/Proje-1). Yerel doğrulama yeşil (lint+typecheck+3 test). Bekleyen: CI koşumu görme, master'a merge. Neon/Vercel/Resend hesapları Faz 1'de bağlanacak (insan adımı, sahibi: kullanıcı). |
 | 1 — Yürüyen iskelet | başlamadı | |
 | 2 — İstatistik + oy + arama | başlamadı | |
 | 3 — AI moderasyon + admin | başlamadı | |
