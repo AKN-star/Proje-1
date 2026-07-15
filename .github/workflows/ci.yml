@@ -12,7 +12,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Yerel geliştirme Node 24/npm 11; npm 10'un iç içe optional
+          # bağımlılıklarda hatalı "lock file out of sync" vermesi nedeniyle
+          # CI da aynı ana sürümde tutulur.
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run lint
