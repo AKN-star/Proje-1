@@ -120,12 +120,9 @@ export async function resolveReport(formData: FormData): Promise<void> {
 }
 
 /**
- * Kullanıcıyı banlar (users.bannedAt=now). Zaten banlıysa dokunmaz.
- * KARAR: moderation_log.action enum'unda ban için ayrı bir değer yok
- * ('mod_remove' anlam kaymasına yol açar) — spec T4 bunu açıkça 'mod_remove
- * DEĞİL' diye işaretliyor. Şema Faz 3 sözleşmesinde sabit ve bu worktree'den
- * migration'a dokunulamaz (CLAUDE.md NEVER). Bu yüzden ban eylemi
- * moderation_log'a hiç yazmaz; iz users.bannedAt kolonunun kendisidir.
+ * Kullanıcıyı banlar (users.bannedAt=now) ve 'mod_ban' logu yazar
+ * (enum Faz 4'te genişletildi — Faz 3 sapma notunun kapanışı).
+ * Zaten banlıysa dokunmaz.
  */
 export async function banUser(formData: FormData): Promise<void> {
   const db = await getDb();
@@ -150,6 +147,13 @@ export async function banUser(formData: FormData): Promise<void> {
 
   if (user && !user.bannedAt) {
     await db.update(users).set({ bannedAt: new Date() }).where(eq(users.id, userId));
+    await logModeration(db, {
+      targetType: "user",
+      targetId: userId,
+      action: "mod_ban",
+      actorType: "user",
+      actorId: actor.id,
+    });
   }
 
   revalidatePath("/admin");
