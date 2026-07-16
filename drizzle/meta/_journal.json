@@ -29,6 +29,13 @@
       "when": 1784146093764,
       "tag": "0003_acoustic_gabe_jones",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784194817276,
+      "tag": "0004_left_warlock",
+      "breakpoints": true
     }
   ]
 }
