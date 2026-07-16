@@ -30,7 +30,14 @@ async function initDb(): Promise<Db> {
     return drizzle(url, { schema });
   }
   const { drizzle } = await import("drizzle-orm/pglite");
-  const pgliteDb = drizzle(".pglite/", { schema });
+  const { PGlite } = await import("@electric-sql/pglite");
+  // `next build` sayfa verisi toplarken birden çok worker bu modülü
+  // paralel yükler; dosya tabanlı PGlite ikinci işlemde çöker. Sayfalar
+  // force-dynamic olduğundan build'de veri önemsiz — bellek-içi örnek
+  // kullanılır (worker başına bağımsız, dosya kilidi yok).
+  const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+  const client = isBuildPhase ? new PGlite() : new PGlite(".pglite/");
+  const pgliteDb = drizzle(client, { schema });
   // Dev'de migration'ları otomatik uygula (idempotent) — `npm run
   // db:migrate` DATABASE_URL ister, PGlite yolu kendi kendini kurar.
   const { migrate } = await import("drizzle-orm/pglite/migrator");
