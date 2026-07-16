@@ -48,6 +48,10 @@ describe("statusForVerdict", () => {
   it("'flag' verdict'i 'flagged' status'üne çevirir", () => {
     expect(statusForVerdict("flag")).toBe("flagged");
   });
+
+  it("'timeout' verdict'i 'pending' status'üne çevirir", () => {
+    expect(statusForVerdict("timeout")).toBe("pending");
+  });
 });
 
 describe("insertExperience", () => {

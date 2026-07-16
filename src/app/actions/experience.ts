@@ -17,6 +17,7 @@ import { moderate } from "@/lib/ai/moderate";
 import { insertExperience, statusForVerdict } from "@/lib/experiences/create";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
 import { recalcTopicStats } from "@/lib/stats/topic-stats";
+import { logModeration } from "@/lib/moderation/log";
 
 const FIELD_ORDER = [
   "purpose",
@@ -53,6 +54,14 @@ export async function submitExperience(formData: FormData): Promise<void> {
     redirect(`/hosgeldin?next=${encodeURIComponent(returnPath)}`);
   }
 
+  // Banlı kullanıcı yazamaz (master plan sözleşmesi). SAPMA KAYDI (T2):
+  // deneyim-yaz sayfasındaki ERROR_MESSAGES sözlüğü T3/W3 kapsamında ve bu
+  // worktree'den dokunulamıyor; özel bir "banli" alanı eklemek yerine
+  // mevcut "_root" genel hata mesajı kullanılır.
+  if (profile?.bannedAt) {
+    redirect(`${returnPath}?hata=_root`);
+  }
+
   // topicId form'dan alınmaz: sahte id ile başka/pasif bir başlığa
   // yazılamasın diye slug'dan yalnız aktif topic server-side çözülür.
   const [topic] = await db
@@ -85,11 +94,28 @@ export async function submitExperience(formData: FormData): Promise<void> {
     "experience",
   );
   if (moderation.verdict === "block") {
+    await logModeration(db, {
+      targetType: "experience",
+      targetId: topic.id,
+      action: "ai_block",
+      detail: { reasons: moderation.reasons },
+      actorType: "ai",
+    });
     redirect(`${returnPath}?hata=moderasyon`);
   }
 
   const status = statusForVerdict(moderation.verdict);
-  await insertExperience(db, validation.data, session.user.id, topic.id, status);
+  const result = await insertExperience(db, validation.data, session.user.id, topic.id, status);
+
+  if (moderation.verdict === "flag" || moderation.verdict === "timeout") {
+    await logModeration(db, {
+      targetType: "experience",
+      targetId: result.id,
+      action: moderation.verdict === "flag" ? "ai_flag" : "ai_timeout",
+      detail: { reasons: moderation.reasons },
+      actorType: "ai",
+    });
+  }
 
   // SAPMA KAYDI (spec T2): master plan aynı transaction'da recalc ister;
   // neon-http driver transaction desteklemez → aynı istek içinde ardışık
