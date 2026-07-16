@@ -29,13 +29,13 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function submitQuestion(formData: FormData): Promise<void> {
-  const session = await auth();
-  if (!session?.user) {
-    redirect("/giris");
-  }
-
   const slug = String(formData.get("slug") ?? "");
   const returnPath = `/baslik/${slug}/soru-sor`;
+
+  const session = await auth();
+  if (!session?.user) {
+    redirect(slug ? `/giris?next=${encodeURIComponent(returnPath)}` : "/giris");
+  }
 
   if (!slug) {
     redirect(`${returnPath}?hata=_root`);
@@ -114,13 +114,17 @@ export async function submitQuestion(formData: FormData): Promise<void> {
 }
 
 export async function submitAnswer(formData: FormData): Promise<void> {
-  const session = await auth();
-  if (!session?.user) {
-    redirect("/giris");
-  }
-
   const questionId = String(formData.get("questionId") ?? "");
   const returnPath = `/soru/${questionId}`;
+
+  const session = await auth();
+  if (!session?.user) {
+    redirect(
+      UUID_RE.test(questionId)
+        ? `/giris?next=${encodeURIComponent(returnPath)}`
+        : "/giris",
+    );
+  }
 
   if (!UUID_RE.test(questionId)) {
     redirect("/");
@@ -163,7 +167,7 @@ export async function submitAnswer(formData: FormData): Promise<void> {
       targetType: "question",
       targetId: question.id,
       action: "ai_block",
-      detail: { reasons: moderation.reasons, note: "blocked-before-insert" },
+      detail: { reasons: moderation.reasons, note: "answer-blocked-before-insert" },
       actorType: "ai",
     });
     redirect(`${returnPath}?hata=moderasyon`);
@@ -227,7 +231,15 @@ export async function voteAnswer(formData: FormData): Promise<void> {
   const [answer] = await db
     .select({ id: answers.id })
     .from(answers)
-    .where(and(eq(answers.id, answerId), eq(answers.status, "published")))
+    .where(
+      and(
+        eq(answers.id, answerId),
+        // questionId eşleşmesi: sahte questionId ile başka sayfaya
+        // revalidate/redirect edilmesin.
+        eq(answers.questionId, questionId),
+        eq(answers.status, "published"),
+      ),
+    )
     .limit(1);
   if (!answer) {
     redirect(returnPath);

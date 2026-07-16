@@ -63,7 +63,7 @@ export async function completeOnboarding(
   }
 }
 
-function isUniqueViolation(err: unknown): boolean {
+export function isUniqueViolation(err: unknown): boolean {
   let current: unknown = err;
   for (let depth = 0; depth < 5 && current; depth++) {
     if (

@@ -6,6 +6,7 @@
 import { eq, like } from "drizzle-orm";
 import type { Db } from "@/db";
 import { topicI18n, topics } from "@/db/schema";
+import { isUniqueViolation } from "@/lib/users/onboarding";
 import type { TopicProposalInput } from "@/lib/validation/topic";
 
 export type TopicStatus = "active" | "pending" | "rejected";
@@ -84,18 +85,33 @@ export async function proposeTopic(
   status: TopicStatus,
 ): Promise<ProposeTopicResult> {
   const baseSlug = slugify(input.name);
-  const slug = await resolveUniqueSlug(db, baseSlug);
+  if (baseSlug === "") {
+    // Doğrulayıcı da reddediyor; burada savunma amaçlı ikinci kapı —
+    // boş slug asla topics'e yazılmamalı ("/baslik/" kırık rota olur).
+    throw new Error("Başlık adından geçerli bir slug üretilemedi.");
+  }
 
-  const [topicRow] = await db
-    .insert(topics)
-    .values({
-      slug,
-      type: input.type,
-      status,
-      createdBy: userId,
-      canonicalName: input.name,
-    })
-    .returning({ id: topics.id });
+  // Eşzamanlı aynı-adlı önerilerde check-then-insert yarışı unique
+  // ihlaline düşebilir; ihlalde slug yeniden çözülüp tekrar denenir.
+  let topicRow: { id: string } | undefined;
+  let slug = baseSlug;
+  for (let attempt = 0; attempt < 5 && !topicRow; attempt++) {
+    slug = await resolveUniqueSlug(db, baseSlug);
+    try {
+      [topicRow] = await db
+        .insert(topics)
+        .values({
+          slug,
+          type: input.type,
+          status,
+          createdBy: userId,
+          canonicalName: input.name,
+        })
+        .returning({ id: topics.id });
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err;
+    }
+  }
 
   if (!topicRow) {
     throw new Error("Başlık önerisi eklenemedi.");

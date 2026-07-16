@@ -5,6 +5,8 @@
  * olabilir — 'drug' asla kullanıcıdan önerilemez (spec T4 notu).
  */
 
+import { slugify } from "@/lib/topics/propose";
+
 export interface TopicProposalInput {
   name: string;
   type: "condition" | "treatment";
@@ -30,6 +32,10 @@ export function validateTopicProposalInput(
   const name = raw.name;
   if (typeof name !== "string" || name.length < 3 || name.length > 100) {
     errors.name = "Başlık adı 3 ile 100 karakter arasında olmalıdır.";
+  } else if (slugify(name) === "") {
+    // "???" gibi yalnız sembollerden oluşan ad boş slug üretir —
+    // /baslik/ altında kırık rota olurdu.
+    errors.name = "Başlık adı en az bir harf veya rakam içermelidir.";
   }
 
   // type: yalnız condition|treatment (drug asla önerilemez)

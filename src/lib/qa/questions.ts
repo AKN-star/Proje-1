@@ -3,7 +3,7 @@
  * sorgular. Moderasyon/doğrulama BURADA yapılmaz — çağıran taraf
  * (server action) sorumludur; bkz. src/lib/experiences/create.ts kalıbı.
  */
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, inArray } from "drizzle-orm";
 import type { Db } from "@/db";
 import { answers, questions, topics, users } from "@/db/schema";
 import type { QuestionInput, AnswerInput } from "@/lib/validation/qa";
@@ -100,13 +100,18 @@ export async function listQuestions(
 
   if (questionIds.length > 0) {
     const answerRows = await db
-      .select({ questionId: answers.questionId })
+      .select({ questionId: answers.questionId, total: count() })
       .from(answers)
-      .where(eq(answers.status, "published"));
+      .where(
+        and(
+          eq(answers.status, "published"),
+          inArray(answers.questionId, questionIds),
+        ),
+      )
+      .groupBy(answers.questionId);
 
     for (const row of answerRows) {
-      if (!questionIds.includes(row.questionId)) continue;
-      answerCounts.set(row.questionId, (answerCounts.get(row.questionId) ?? 0) + 1);
+      answerCounts.set(row.questionId, row.total);
     }
   }
 
@@ -166,7 +171,14 @@ export async function getQuestion(
     .from(questions)
     .innerJoin(users, eq(users.id, questions.userId))
     .innerJoin(topics, eq(topics.id, questions.topicId))
-    .where(and(eq(questions.id, questionId), eq(questions.status, "published")))
+    .where(
+      and(
+        eq(questions.id, questionId),
+        eq(questions.status, "published"),
+        // Topic sonradan pasifleştirilirse soruları da kamuya kapansın.
+        eq(topics.status, "active"),
+      ),
+    )
     .limit(1);
 
   if (!questionRow) return null;
