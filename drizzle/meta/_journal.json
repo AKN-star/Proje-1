@@ -43,6 +43,13 @@
       "when": 1784210767841,
       "tag": "0005_puzzling_krista_starr",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784219333467,
+      "tag": "0006_mighty_silver_sable",
+      "breakpoints": true
     }
   ]
 }

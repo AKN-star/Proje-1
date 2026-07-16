@@ -208,6 +208,31 @@ export const reports = pgTable(
   ],
 );
 
+/** LLM çeviri önbelleği (Faz 5). source_hash içerik düzenlenince bayat
+ * çevirinin servis edilmemesini sağlar (kickoff kararı #8). */
+export const translations = pgTable(
+  "translations",
+  {
+    targetType: text("target_type")
+      .notNull()
+      .$type<"experience" | "question" | "answer">(),
+    targetId: uuid("target_id").notNull(),
+    field: text("field").notNull(),
+    locale: text("locale").notNull(),
+    text: text("text").notNull(),
+    model: text("model").notNull(),
+    sourceHash: text("source_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.targetType, table.targetId, table.field, table.locale],
+    }),
+  ],
+);
+
 export const moderationLog = pgTable("moderation_log", {
   id: uuid("id").primaryKey().defaultRandom(),
   targetType: text("target_type").notNull(),
