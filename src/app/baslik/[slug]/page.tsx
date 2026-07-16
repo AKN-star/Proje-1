@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { MedicalDisclaimer } from "@/components/medical-disclaimer";
 import { voteExperience } from "@/app/actions/vote";
+import { reportExperience } from "@/app/actions/report";
+import { REPORT_REASONS } from "@/lib/reports/report";
 import { cn } from "@/lib/utils";
 
 // Canlı DB verisi gösterir; build sırasında prerender edilmez (PGlite
@@ -45,10 +47,10 @@ export default async function TopicPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ sirala?: string }>;
+  searchParams: Promise<{ sirala?: string; bildirildi?: string }>;
 }) {
   const { slug } = await params;
-  const { sirala } = await searchParams;
+  const { sirala, bildirildi } = await searchParams;
   const sort: TopicSort = sirala === "oy" ? "oy" : "yeni";
 
   const db = await getDb();
@@ -91,6 +93,12 @@ export default async function TopicPage({
         )}
         {topic.summary && <p className="text-muted-foreground">{topic.summary}</p>}
       </div>
+
+      {bildirildi === "1" && (
+        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-400">
+          Bildiriminiz alındı, teşekkürler.
+        </p>
+      )}
 
       {stats && stats.experienceCount > 0 && (
         <Card>
@@ -192,42 +200,80 @@ export default async function TopicPage({
                   </div>
                 )}
                 <p className="whitespace-pre-wrap text-sm">{experience.body}</p>
-                <div className="flex items-center gap-1 text-sm">
-                  <form action={voteExperience}>
-                    <input type="hidden" name="experienceId" value={experience.id} />
-                    <input type="hidden" name="value" value="1" />
-                    <input type="hidden" name="slug" value={topic.slug} />
-                    <button
-                      type="submit"
-                      aria-label="Yukarı oyla"
-                      aria-pressed={experience.myVote === 1}
-                      className={cn(
-                        buttonVariants({ variant: "ghost", size: "icon" }),
-                        "size-7",
-                        experience.myVote === 1 ? "text-emerald-600" : "text-muted-foreground",
-                      )}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1 text-sm">
+                    <form action={voteExperience}>
+                      <input type="hidden" name="experienceId" value={experience.id} />
+                      <input type="hidden" name="value" value="1" />
+                      <input type="hidden" name="slug" value={topic.slug} />
+                      <button
+                        type="submit"
+                        aria-label="Yukarı oyla"
+                        aria-pressed={experience.myVote === 1}
+                        className={cn(
+                          buttonVariants({ variant: "ghost", size: "icon" }),
+                          "size-7",
+                          experience.myVote === 1 ? "text-emerald-600" : "text-muted-foreground",
+                        )}
+                      >
+                        ▲
+                      </button>
+                    </form>
+                    <span className="min-w-6 text-center font-medium">{experience.score}</span>
+                    <form action={voteExperience}>
+                      <input type="hidden" name="experienceId" value={experience.id} />
+                      <input type="hidden" name="value" value="-1" />
+                      <input type="hidden" name="slug" value={topic.slug} />
+                      <button
+                        type="submit"
+                        aria-label="Aşağı oyla"
+                        aria-pressed={experience.myVote === -1}
+                        className={cn(
+                          buttonVariants({ variant: "ghost", size: "icon" }),
+                          "size-7",
+                          experience.myVote === -1 ? "text-red-600" : "text-muted-foreground",
+                        )}
+                      >
+                        ▼
+                      </button>
+                    </form>
+                  </div>
+                  <details className="text-xs text-muted-foreground">
+                    <summary className="cursor-pointer select-none hover:text-foreground">
+                      Bildir
+                    </summary>
+                    <form
+                      action={reportExperience}
+                      className="mt-2 flex flex-col items-end gap-1.5"
                     >
-                      ▲
-                    </button>
-                  </form>
-                  <span className="min-w-6 text-center font-medium">{experience.score}</span>
-                  <form action={voteExperience}>
-                    <input type="hidden" name="experienceId" value={experience.id} />
-                    <input type="hidden" name="value" value="-1" />
-                    <input type="hidden" name="slug" value={topic.slug} />
-                    <button
-                      type="submit"
-                      aria-label="Aşağı oyla"
-                      aria-pressed={experience.myVote === -1}
-                      className={cn(
-                        buttonVariants({ variant: "ghost", size: "icon" }),
-                        "size-7",
-                        experience.myVote === -1 ? "text-red-600" : "text-muted-foreground",
-                      )}
-                    >
-                      ▼
-                    </button>
-                  </form>
+                      <input type="hidden" name="experienceId" value={experience.id} />
+                      <input type="hidden" name="slug" value={topic.slug} />
+                      <select
+                        name="reason"
+                        defaultValue=""
+                        required
+                        className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+                      >
+                        <option value="" disabled>
+                          Sebep seçin
+                        </option>
+                        {REPORT_REASONS.map((r) => (
+                          <option key={r.value} value={r.value}>
+                            {r.label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        className={cn(
+                          buttonVariants({ variant: "outline", size: "sm" }),
+                          "h-7 text-xs",
+                        )}
+                      >
+                        Gönder
+                      </button>
+                    </form>
+                  </details>
                 </div>
               </CardContent>
             </Card>
