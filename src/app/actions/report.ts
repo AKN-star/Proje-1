@@ -12,6 +12,7 @@ import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { experiences } from "@/db/schema";
 import { createReport, isValidReportReason } from "@/lib/reports/report";
+import { getOnboardingProfile } from "@/lib/users/onboarding";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -40,6 +41,12 @@ export async function reportExperience(formData: FormData): Promise<void> {
   }
 
   const db = await getDb();
+
+  // Banlı kullanıcının rapor spam'i admin kuyruğunu kirletmesin.
+  const profile = await getOnboardingProfile(db, session.user.id);
+  if (profile?.bannedAt) {
+    redirect(returnPath);
+  }
 
   const [experience] = await db
     .select({ id: experiences.id })

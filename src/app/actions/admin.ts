@@ -39,12 +39,14 @@ export async function approveExperience(formData: FormData): Promise<void> {
     redirect("/admin");
   }
 
+  // Yalnız kuyruktaki (flagged/pending) ya da kaldırılmış kayıt geri
+  // yayınlanabilir; zaten published olana no-op.
   const [experience] = await db
-    .select({ id: experiences.id, topicId: experiences.topicId })
+    .select({ id: experiences.id, topicId: experiences.topicId, status: experiences.status })
     .from(experiences)
     .where(eq(experiences.id, experienceId))
     .limit(1);
-  if (!experience) {
+  if (!experience || experience.status === "published") {
     redirect("/admin");
   }
 
@@ -76,11 +78,11 @@ export async function removeExperience(formData: FormData): Promise<void> {
   }
 
   const [experience] = await db
-    .select({ id: experiences.id, topicId: experiences.topicId })
+    .select({ id: experiences.id, topicId: experiences.topicId, status: experiences.status })
     .from(experiences)
     .where(eq(experiences.id, experienceId))
     .limit(1);
-  if (!experience) {
+  if (!experience || experience.status === "removed") {
     redirect("/admin");
   }
 
@@ -127,7 +129,7 @@ export async function resolveReport(formData: FormData): Promise<void> {
  */
 export async function banUser(formData: FormData): Promise<void> {
   const db = await getDb();
-  await requireActor(db);
+  const actor = await requireActor(db);
 
   const userId = String(formData.get("userId") ?? "");
   if (!UUID_RE.test(userId)) {
@@ -135,10 +137,16 @@ export async function banUser(formData: FormData): Promise<void> {
   }
 
   const [user] = await db
-    .select({ id: users.id, bannedAt: users.bannedAt })
+    .select({ id: users.id, bannedAt: users.bannedAt, role: users.role })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
+
+  // Kendini veya başka bir mod/admin'i banlamak panelden mümkün olmasın
+  // (yanlış tık koruması; rol düşürme ayrı bir insan kararıdır).
+  if (user && (user.id === actor.id || user.role === "mod" || user.role === "admin")) {
+    redirect("/admin");
+  }
 
   if (user && !user.bannedAt) {
     await db.update(users).set({ bannedAt: new Date() }).where(eq(users.id, userId));

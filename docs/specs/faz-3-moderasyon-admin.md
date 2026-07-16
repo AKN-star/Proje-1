@@ -85,3 +85,18 @@ akış çalışır (ok yolu), rapor verilebilir, admin kuyruğu görünür ve
 approve/remove çalışır; final review kapandı; progress.md güncel.
 İNSAN ADIMLARI: ANTHROPIC_API_KEY (Vercel env; sahibi kullanıcı, faz
 kapanışında istenir) + admin:grant koşumu.
+
+## Kapanış notları (final review sonrası, 2026-07-16)
+
+- Review düzeltmeleri: banlı kullanıcı oy ve rapor veremez; ai_block logu
+  targetType 'topic' + note 'blocked-before-insert' (insert olmadığı için
+  experience id yok — yanlış eşleşme riski kapatıldı); approve/remove
+  status ön-koşullu; admin kendini/başka mod-admin'i panelden banlayamaz.
+- SAPMA (insan onayına): ban eylemi moderation_log'a yazılmıyor —
+  action enum'unda ban değeri yok, iz users.banned_at. Faz 4+ şema
+  değişikliğinde 'mod_ban' eklenmesi önerilir.
+- TAKİP GÖREVİ: src/lib/admin/admin.test.ts akış testleri action'ları
+  doğrudan çağırmıyor (auth mock gerektirir) — lib katmanını test ediyor.
+  Faz 4'te admin paneli genişlerken action seviyesi teste yükseltilecek.
+- Bilinçli kabul: kendi deneyimini raporlamak engellenmedi (zararsız);
+  banlı admin senaryosu yok (panelden mod/admin banlanamaz).

@@ -13,6 +13,7 @@ import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { experiences } from "@/db/schema";
 import { castVote } from "@/lib/votes/vote";
+import { getOnboardingProfile } from "@/lib/users/onboarding";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -42,6 +43,12 @@ export async function voteExperience(formData: FormData): Promise<void> {
   const value = rawValue === "1" ? 1 : -1;
 
   const db = await getDb();
+
+  // Banlı kullanıcı oy veremez (master plan: yazamaz/oylayamaz).
+  const profile = await getOnboardingProfile(db, session.user.id);
+  if (profile?.bannedAt) {
+    redirect(returnPath);
+  }
 
   const [experience] = await db
     .select({ id: experiences.id })

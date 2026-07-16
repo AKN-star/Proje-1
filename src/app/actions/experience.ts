@@ -94,11 +94,14 @@ export async function submitExperience(formData: FormData): Promise<void> {
     "experience",
   );
   if (moderation.verdict === "block") {
+    // Insert yapılmadığı için deneyim id'si yok — hedef topic'tir;
+    // targetType "experience" YAZILMAZ (admin kuyruğu experience id'siyle
+    // eşliyor, topic id'si yanlış karta yapışabilirdi).
     await logModeration(db, {
-      targetType: "experience",
+      targetType: "topic",
       targetId: topic.id,
       action: "ai_block",
-      detail: { reasons: moderation.reasons },
+      detail: { reasons: moderation.reasons, note: "blocked-before-insert" },
       actorType: "ai",
     });
     redirect(`${returnPath}?hata=moderasyon`);
