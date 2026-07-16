@@ -47,7 +47,10 @@ export async function listTopics(
 
   const whereClauses = [eq(topics.status, "active")];
   if (q) {
-    const pattern = `%${q}%`;
+    // LIKE jokerleri kullanıcı girdisinden kaçırılır (%%% tüm tabloyu
+    // döndürmesin); enjeksiyon yok (parametreli) ama semantik korunur.
+    const escaped = q.replace(/[\\%_]/g, "\\$&");
+    const pattern = `%${escaped}%`;
     whereClauses.push(
       or(
         ilike(topics.canonicalName, pattern),

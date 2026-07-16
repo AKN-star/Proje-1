@@ -42,7 +42,15 @@ export async function castVote(
     .limit(1);
 
   if (!existing) {
-    await db.insert(votes).values({ userId, targetType, targetId, value });
+    // Yarış koşulu (çift tık): iki istek de "oy yok" görebilir; ikinci
+    // insert PK'ye çarpınca 500 yerine mevcut oy güncellenir (atomik).
+    await db
+      .insert(votes)
+      .values({ userId, targetType, targetId, value })
+      .onConflictDoUpdate({
+        target: [votes.userId, votes.targetType, votes.targetId],
+        set: { value },
+      });
     return "added";
   }
 

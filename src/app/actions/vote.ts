@@ -18,12 +18,15 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function voteExperience(formData: FormData): Promise<void> {
+  const slug = String(formData.get("slug") ?? "");
+
   const session = await auth();
   if (!session?.user) {
-    redirect("/giris");
+    // Giriş sonrası kullanıcı oyladığı sayfaya dönsün.
+    redirect(
+      slug ? `/giris?next=${encodeURIComponent(`/baslik/${slug}`)}` : "/giris",
+    );
   }
-
-  const slug = String(formData.get("slug") ?? "");
   const experienceId = String(formData.get("experienceId") ?? "");
   const rawValue = String(formData.get("value") ?? "");
 

@@ -200,6 +200,7 @@ export default async function TopicPage({
                     <button
                       type="submit"
                       aria-label="Yukarı oyla"
+                      aria-pressed={experience.myVote === 1}
                       className={cn(
                         buttonVariants({ variant: "ghost", size: "icon" }),
                         "size-7",
@@ -217,6 +218,7 @@ export default async function TopicPage({
                     <button
                       type="submit"
                       aria-label="Aşağı oyla"
+                      aria-pressed={experience.myVote === -1}
                       className={cn(
                         buttonVariants({ variant: "ghost", size: "icon" }),
                         "size-7",

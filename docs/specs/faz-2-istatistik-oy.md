@@ -69,3 +69,15 @@ Sonra: suite + davranışsal doğrulama (build&start) + final review.
 lint+typecheck+vitest yeşil; CI yeşil; canlı: deneyim yaz → istatistik
 bloğu güncellenir, oy ver → skor değişir, sıralama çalışır, arama etken
 maddeyle bulur; final review bulguları kapatıldı; progress.md güncel.
+
+## Kapanış notları (final review sonrası, 2026-07-16)
+
+- Review düzeltmeleri: castVote insert'i onConflictDoUpdate ile atomik
+  (çift tık yarışında 500 yok); arama LIKE jokerleri kaçırılıyor;
+  /giris `?next=` destekler ve oy action'ı dönüş yolunu taşır; oy
+  butonlarında aria-pressed.
+- Bilinçli kabul: kullanıcı kendi deneyimine oy verebilir (spec sessizdi;
+  engel Faz 3 moderasyon/politika kapsamında yeniden değerlendirilir).
+- Faz 7 notu: getScores'taki iki sorgu tek koşullu agregasyona,
+  sort="oy" bellek içi sıralaması SQL join'ine taşınabilir (sayfalama
+  gelirse zorunlu).
