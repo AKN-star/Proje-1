@@ -160,6 +160,81 @@ export async function banUser(formData: FormData): Promise<void> {
   redirect("/admin");
 }
 
+/**
+ * Bekleyen bir başlık önerisini onaylar (status→'active'). Yalnız
+ * status='pending' olan kayda etki eder (T4, spec adım 1: admin'e
+ * "Başlık önerileri" bölümü).
+ */
+export async function approveTopic(formData: FormData): Promise<void> {
+  const db = await getDb();
+  const actor = await requireActor(db);
+
+  const topicId = String(formData.get("topicId") ?? "");
+  if (!UUID_RE.test(topicId)) {
+    redirect("/admin");
+  }
+
+  const [topic] = await db
+    .select({ id: topics.id, status: topics.status })
+    .from(topics)
+    .where(eq(topics.id, topicId))
+    .limit(1);
+  if (!topic || topic.status !== "pending") {
+    redirect("/admin");
+  }
+
+  await db.update(topics).set({ status: "active" }).where(eq(topics.id, topicId));
+
+  await logModeration(db, {
+    targetType: "topic",
+    targetId: topicId,
+    action: "mod_restore",
+    detail: { note: "topic-proposal" },
+    actorType: "user",
+    actorId: actor.id,
+  });
+
+  revalidatePath("/admin");
+  redirect("/admin");
+}
+
+/**
+ * Bekleyen bir başlık önerisini reddeder (status→'rejected'). Yalnız
+ * status='pending' olan kayda etki eder.
+ */
+export async function rejectTopic(formData: FormData): Promise<void> {
+  const db = await getDb();
+  const actor = await requireActor(db);
+
+  const topicId = String(formData.get("topicId") ?? "");
+  if (!UUID_RE.test(topicId)) {
+    redirect("/admin");
+  }
+
+  const [topic] = await db
+    .select({ id: topics.id, status: topics.status })
+    .from(topics)
+    .where(eq(topics.id, topicId))
+    .limit(1);
+  if (!topic || topic.status !== "pending") {
+    redirect("/admin");
+  }
+
+  await db.update(topics).set({ status: "rejected" }).where(eq(topics.id, topicId));
+
+  await logModeration(db, {
+    targetType: "topic",
+    targetId: topicId,
+    action: "mod_remove",
+    detail: { note: "topic-proposal" },
+    actorType: "user",
+    actorId: actor.id,
+  });
+
+  revalidatePath("/admin");
+  redirect("/admin");
+}
+
 async function revalidateAfterExperienceChange(db: Db, topicId: string): Promise<void> {
   const [topic] = await db
     .select({ slug: topics.slug })
