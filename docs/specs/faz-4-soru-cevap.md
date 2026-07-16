@@ -83,3 +83,20 @@ Sonra: suite + canlı doğrulama + final review (fable).
 lint+typecheck+vitest yeşil; CI yeşil; canlı: soru sor → görünür →
 yanıtla → oyla; başlık öner → admin onayla → ana sayfada görünür;
 final review kapandı; progress.md güncel.
+
+## Kapanış notları (2026-07-16)
+- Canlı doğrulama geçti: soru→topic sayfasında görünür→yanıt→▲ oy (skor 1,
+  aria-pressed)→başlık öner (?gonderildi=1)→admin kuyruğu→Onayla→ana
+  sayfada görünür + kuyruktan düşer.
+- SAPMA (T4): block verdict'te henüz topic satırı yok → log targetType
+  'user' + note 'topic-proposal-blocked-before-insert' (moderation_log.
+  target_id NOT NULL olduğundan en yakın hedef).
+- SAPMA (T4): topics tablosunda created_at yok (sözleşme gereği dokunulmadı)
+  → admin öneri listesinde tarih yerine ada göre sıralama.
+- Final review bulguları kapatıldı: boş slug reddi (yalnız sembol ad),
+  slug yarışında unique-ihlal retry'ı, listQuestions yanıt sayısı artık
+  inArray+groupBy (tam tablo taraması değil), getQuestion topic 'active'
+  filtresi, voteAnswer answer↔question eşleşme doğrulaması, yanıt block
+  logu 'answer-blocked-before-insert', girişsiz submit'lerde /giris?next=.
+- Bilinçli davranış: öneri her verdict'te 'pending' (block hariç — insert
+  yok); soruya rapor Faz 4.1'e ertelendi (reports.target_type genişletmesi).
