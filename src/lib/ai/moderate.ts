@@ -15,7 +15,7 @@
  */
 import { callClaude, getAnthropicApiKey } from "./client";
 
-export type ModerationKind = "experience" | "question" | "answer";
+export type ModerationKind = "experience" | "question" | "answer" | "topic";
 
 export type ModerationVerdict = "ok" | "flag" | "block" | "timeout";
 

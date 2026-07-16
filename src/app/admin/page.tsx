@@ -3,14 +3,20 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { requireModerator } from "@/lib/admin/guard";
-import { listModerationQueue, listOpenReports } from "@/lib/admin/queries";
+import {
+  listModerationQueue,
+  listOpenReports,
+  listPendingTopicProposals,
+} from "@/lib/admin/queries";
 import { REPORT_REASONS } from "@/lib/reports/report";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import {
   approveExperience,
+  approveTopic,
   banUser,
+  rejectTopic,
   removeExperience,
   resolveReport,
 } from "@/app/actions/admin";
@@ -23,6 +29,12 @@ export const dynamic = "force-dynamic";
 const REPORT_REASON_LABELS: Record<string, string> = Object.fromEntries(
   REPORT_REASONS.map((r) => [r.value, r.label]),
 );
+
+const TOPIC_TYPE_LABELS: Record<string, string> = {
+  drug: "İlaç",
+  condition: "Durum / hastalık",
+  treatment: "Tedavi",
+};
 
 function formatDate(date: Date): string {
   return new Intl.DateTimeFormat("tr-TR", {
@@ -46,9 +58,10 @@ export default async function AdminPage() {
     notFound();
   }
 
-  const [queue, openReports] = await Promise.all([
+  const [queue, openReports, pendingTopics] = await Promise.all([
     listModerationQueue(db),
     listOpenReports(db),
+    listPendingTopicProposals(db),
   ]);
 
   return (
@@ -196,6 +209,51 @@ export default async function AdminPage() {
                       className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
                     >
                       Yazarı banla
+                    </button>
+                  </form>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-xl font-semibold">Başlık önerileri</h2>
+        {pendingTopics.length === 0 ? (
+          <p className="text-muted-foreground">Bekleyen öneri yok.</p>
+        ) : (
+          pendingTopics.map((proposal) => (
+            <Card key={proposal.id}>
+              <CardHeader>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <CardTitle className="text-base">{proposal.name}</CardTitle>
+                  <Badge variant="outline">
+                    {TOPIC_TYPE_LABELS[proposal.type] ?? proposal.type}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Öneren: @{proposal.proposerUsername}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <form action={approveTopic}>
+                    <input type="hidden" name="topicId" value={proposal.id} />
+                    <button
+                      type="submit"
+                      className={cn(buttonVariants({ variant: "default", size: "sm" }))}
+                    >
+                      Onayla
+                    </button>
+                  </form>
+                  <form action={rejectTopic}>
+                    <input type="hidden" name="topicId" value={proposal.id} />
+                    <button
+                      type="submit"
+                      className={cn(buttonVariants({ variant: "destructive", size: "sm" }))}
+                    >
+                      Reddet
                     </button>
                   </form>
                 </div>
