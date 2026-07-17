@@ -15,9 +15,7 @@ import { requireModerator, type ModeratorActor } from "@/lib/admin/guard";
 import { reviewBadgeRequest } from "@/lib/badges/requests";
 import { logModeration } from "@/lib/moderation/log";
 import { recalcTopicStats } from "@/lib/stats/topic-stats";
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { UUID_RE } from "@/lib/validate";
 
 async function requireActor(db: Db): Promise<ModeratorActor> {
   const session = await auth();

@@ -4,12 +4,19 @@
  * (institution + document_note); içerik yayınlanmaz, yalnız admin görür
  * (moderate() kapsamı dışı — kural #3 yayın API'lerini bağlar).
  */
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { badgeRequests, users } from "@/db/schema";
 
 export const CLAIMED_ROLES = ["doctor", "pharmacist"] as const;
 export type ClaimedRole = (typeof CLAIMED_ROLES)[number];
+
+/** Rol sözlüğünün Türkçe etiketleri — tek sahip burası (admin paneli,
+ * başvuru formu ve rozet bileşeni buradan türetir). */
+export const CLAIMED_ROLE_LABELS: Record<ClaimedRole, string> = {
+  doctor: "Doktor",
+  pharmacist: "Eczacı",
+};
 
 export function isClaimedRole(value: unknown): value is ClaimedRole {
   return CLAIMED_ROLES.includes(value as ClaimedRole);
@@ -49,21 +56,22 @@ export async function createBadgeRequest(
     return { ok: false, error: "invalid" };
   }
 
-  const [user] = await db
-    .select({ proBadge: users.proBadge })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
+  const [[user], [pending]] = await Promise.all([
+    db
+      .select({ proBadge: users.proBadge })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1),
+    db
+      .select({ id: badgeRequests.id })
+      .from(badgeRequests)
+      .where(
+        and(eq(badgeRequests.userId, userId), eq(badgeRequests.status, "pending")),
+      )
+      .limit(1),
+  ]);
   if (!user) return { ok: false, error: "invalid" };
   if (user.proBadge) return { ok: false, error: "already" };
-
-  const [pending] = await db
-    .select({ id: badgeRequests.id })
-    .from(badgeRequests)
-    .where(
-      and(eq(badgeRequests.userId, userId), eq(badgeRequests.status, "pending")),
-    )
-    .limit(1);
   if (pending) return { ok: false, error: "pending" };
 
   const [row] = await db
@@ -121,8 +129,10 @@ export async function listPendingBadgeRequests(
 
 /**
  * Bekleyen başvuruyu sonuçlandırır. approve: users.pro_badge =
- * claimed_role, role 'user' ise 'pro' (admin/mod düşürülmez). Yalnız
- * status='pending' kayda etki eder; değilse false döner.
+ * claimed_role, role 'user' ise 'pro' (admin/mod düşürülmez). Tek
+ * geçişlilik DB derinliğinde: koşullu UPDATE ... WHERE status='pending'
+ * — eşzamanlı onay/red yarışında yalnız ilk karar işlenir, ikincisi
+ * false döner (Faz 4 slug yarışı deseniyle aynı yaklaşım).
  */
 export async function reviewBadgeRequest(
   db: Db,
@@ -130,40 +140,32 @@ export async function reviewBadgeRequest(
   reviewerId: string,
   decision: "approve" | "reject",
 ): Promise<boolean> {
-  const [request] = await db
-    .select({
-      id: badgeRequests.id,
-      userId: badgeRequests.userId,
-      claimedRole: badgeRequests.claimedRole,
-      status: badgeRequests.status,
-    })
-    .from(badgeRequests)
-    .where(eq(badgeRequests.id, requestId))
-    .limit(1);
-  if (!request || request.status !== "pending") return false;
-
-  await db
+  const [updated] = await db
     .update(badgeRequests)
     .set({
       status: decision === "approve" ? "approved" : "rejected",
       reviewedBy: reviewerId,
       reviewedAt: new Date(),
     })
-    .where(eq(badgeRequests.id, requestId));
+    .where(
+      and(eq(badgeRequests.id, requestId), eq(badgeRequests.status, "pending")),
+    )
+    .returning({
+      userId: badgeRequests.userId,
+      claimedRole: badgeRequests.claimedRole,
+    });
+  if (!updated) return false;
 
   if (decision === "approve") {
-    const [target] = await db
-      .select({ role: users.role })
-      .from(users)
-      .where(eq(users.id, request.userId))
-      .limit(1);
+    // Rol tek koşullu UPDATE ile: read-modify-write yarışı yok, tek
+    // round-trip (eşzamanlı admin:grant bayat rolle ezilmez).
     await db
       .update(users)
       .set({
-        proBadge: request.claimedRole,
-        role: target?.role === "user" ? "pro" : target?.role,
+        proBadge: updated.claimedRole,
+        role: sql`CASE WHEN ${users.role} = 'user' THEN 'pro' ELSE ${users.role} END`,
       })
-      .where(eq(users.id, request.userId));
+      .where(eq(users.id, updated.userId));
   }
   return true;
 }

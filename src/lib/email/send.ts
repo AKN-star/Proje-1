@@ -1,13 +1,36 @@
 import { brand } from "@/config/brand";
 
 /**
- * Magic link e-postası gönderir. `resend` paketi (SDK) BAĞIMLILIK
- * YASAĞI kapsamında eklenmez — RESEND_API_KEY varsa Resend REST API'sine
- * çıplak `fetch` ile POST edilir; yoksa dev modunda konsola loglanır.
+ * E-posta gönderimi. `resend` paketi (SDK) BAĞIMLILIK YASAĞI kapsamında
+ * eklenmez — RESEND_API_KEY varsa Resend REST API'sine çıplak `fetch`
+ * ile POST edilir; anahtarsız davranış çağırana bırakılır (magic link:
+ * hata/log, bildirim: log).
  */
 // Gönderici adresi tek yerde (auth.ts provider'ı da bunu kullanır);
 // özel domain doğrulanınca yalnız burası değişir.
 export const EMAIL_FROM = "onboarding@resend.dev";
+
+/** Resend REST çağrısının tek kopyası; !res.ok fırlatır. */
+async function postResendEmail(
+  apiKey: string,
+  to: string,
+  subject: string,
+  html: string,
+): Promise<void> {
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Resend gönderim hatası (${res.status}): ${body}`);
+  }
+}
 
 export async function sendMagicLink(to: string, url: string): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
@@ -22,24 +45,12 @@ export async function sendMagicLink(to: string, url: string): Promise<void> {
     return;
   }
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: EMAIL_FROM,
-      to: [to],
-      subject: `${brand.name} — giriş bağlantınız`,
-      html: `<p>${brand.name} hesabınıza giriş yapmak için aşağıdaki bağlantıya tıklayın:</p><p><a href="${url}">${url}</a></p>`,
-    }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Resend gönderim hatası (${res.status}): ${body}`);
-  }
+  await postResendEmail(
+    apiKey,
+    to,
+    `${brand.name} — giriş bağlantınız`,
+    `<p>${brand.name} hesabınıza giriş yapmak için aşağıdaki bağlantıya tıklayın:</p><p><a href="${url}">${url}</a></p>`,
+  );
 }
 
 /**
@@ -53,7 +64,6 @@ export async function sendBadgeRequestNotice(request: {
   institution: string;
 }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
-  const subject = `${brand.name} — yeni rozet başvurusu: ${request.username}`;
 
   if (!apiKey) {
     console.log(
@@ -67,22 +77,12 @@ export async function sendBadgeRequestNotice(request: {
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
   try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: EMAIL_FROM,
-        to: [brand.contactEmail],
-        subject,
-        html: `<p>Yeni rozet başvurusu var:</p><ul><li>Kullanıcı: ${esc(request.username)}</li><li>Rol: ${esc(request.claimedRole)}</li><li>Kurum: ${esc(request.institution)}</li></ul><p>Onay/red için admin paneline gidin.</p>`,
-      }),
-    });
-    if (!res.ok) {
-      console.error(`Rozet bildirimi gönderilemedi (${res.status}).`);
-    }
+    await postResendEmail(
+      apiKey,
+      brand.contactEmail,
+      `${brand.name} — yeni rozet başvurusu: ${request.username}`,
+      `<p>Yeni rozet başvurusu var:</p><ul><li>Kullanıcı: ${esc(request.username)}</li><li>Rol: ${esc(request.claimedRole)}</li><li>Kurum: ${esc(request.institution)}</li></ul><p>Onay/red için admin paneline gidin.</p>`,
+    );
   } catch (err) {
     console.error("Rozet bildirimi gönderilemedi:", err);
   }
