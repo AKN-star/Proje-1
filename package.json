@@ -11,7 +11,8 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "admin:grant": "node scripts/make-admin.mjs"
+    "admin:grant": "node scripts/make-admin.mjs",
+    "titck:import": "node scripts/titck-import.mjs"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",

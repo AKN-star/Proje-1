@@ -15,6 +15,7 @@ import { topics } from "@/db/schema";
 import { validateExperienceInput } from "@/lib/validation/experience";
 import { moderate } from "@/lib/ai/moderate";
 import { insertExperience, statusForVerdict } from "@/lib/experiences/create";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
 import { recalcTopicStats } from "@/lib/stats/topic-stats";
 import { logModeration } from "@/lib/moderation/log";
@@ -60,6 +61,10 @@ export async function submitExperience(formData: FormData): Promise<void> {
   // mevcut "_root" genel hata mesajı kullanılır.
   if (profile?.bannedAt) {
     redirect(`${returnPath}?hata=_root`);
+  }
+
+  if (!(await checkRateLimit(db, session.user.id, "experience"))) {
+    redirect(`${returnPath}?hata=limit`);
   }
 
   // topicId form'dan alınmaz: sahte id ile başka/pasif bir başlığa

@@ -12,10 +12,9 @@ import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { experiences } from "@/db/schema";
 import { createReport, isValidReportReason } from "@/lib/reports/report";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { getOnboardingProfile } from "@/lib/users/onboarding";
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { UUID_RE } from "@/lib/validate";
 
 export async function reportExperience(formData: FormData): Promise<void> {
   const slug = String(formData.get("slug") ?? "");
@@ -45,6 +44,11 @@ export async function reportExperience(formData: FormData): Promise<void> {
   // Banlı kullanıcının rapor spam'i admin kuyruğunu kirletmesin.
   const profile = await getOnboardingProfile(db, session.user.id);
   if (profile?.bannedAt) {
+    redirect(returnPath);
+  }
+
+  // Rapor akışı "sessiz başarı" ilkesinde — limit aşımı da sessiz döner.
+  if (!(await checkRateLimit(db, session.user.id, "report"))) {
     redirect(returnPath);
   }
 

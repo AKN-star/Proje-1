@@ -1,8 +1,9 @@
+import { RATE_LIMIT_ERROR_MESSAGE } from "@/lib/rate-limit";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
-import { getQuestion } from "@/lib/qa/questions";
+import { getQuestion, getQuestionMeta } from "@/lib/qa/questions";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
@@ -22,6 +23,7 @@ export const dynamic = "force-dynamic";
 const ERROR_MESSAGES: Record<string, string> = {
   body: "Metin 2 ile 5000 karakter arasında olmalıdır.",
   moderasyon: "İçerik yayınlanamadı, lütfen metni gözden geçirin.",
+  limit: RATE_LIMIT_ERROR_MESSAGE,
   _root: "Bir şeyler ters gitti, lütfen tekrar deneyin.",
 };
 
@@ -31,6 +33,24 @@ function formatDate(date: Date): string {
     month: "long",
     year: "numeric",
   }).format(date);
+}
+
+/** SEO (Faz 7 T2): soru başlığı title/description. Ağır yanıt sorgusu
+ * değil, tek satırlık meta sorgusu kullanılır. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  if (!UUID_RE.test(id)) return {};
+  const db = await getDb();
+  const meta = await getQuestionMeta(db, id);
+  if (!meta) return {};
+  return {
+    title: meta.title,
+    description: `${meta.topicName} hakkında soru: ${meta.title}`,
+  };
 }
 
 export default async function SoruPage({
