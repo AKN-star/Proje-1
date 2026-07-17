@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import type { Adapter } from "next-auth/adapters";
 import type { EmailConfig } from "next-auth/providers/email";
+import Google from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { getDb } from "@/db";
 import { accounts, sessions, users, verificationTokens } from "@/db/auth-schema";
@@ -33,6 +34,15 @@ const emailProvider: EmailConfig = {
   },
 };
 
+// Google OAuth (Faz 6): env yoksa provider hiç eklenmez — /giris'te
+// buton da görünmez (anahtarsız zarif düşüş). Hesap birleştirme
+// (allowDangerousEmailAccountLinking) bilinçle KAPALI (varsayılan):
+// aynı e-postalı magic-link hesabına Google'la girilemez, ayrı hesap
+// açılır — hesap ele geçirme riskine karşı.
+export const googleEnabled = Boolean(
+  process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET,
+);
+
 export const {
   handlers: { GET, POST },
   auth,
@@ -43,7 +53,7 @@ export const {
   // Vercel'de AUTH_TRUST_HOST otomatik; yerel `next start` ve benzeri
   // ortamlar için host'a açıkça güvenilir (reverse proxy arkası dahil).
   trustHost: true,
-  providers: [emailProvider],
+  providers: googleEnabled ? [emailProvider, Google] : [emailProvider],
   session: { strategy: "database" },
   pages: {
     verifyRequest: "/giris/gonderildi",
