@@ -1,3 +1,4 @@
+import { RATE_LIMIT_ERROR_MESSAGE } from "@/lib/rate-limit";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
@@ -22,7 +23,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   durationDays: "Süre boş bırakılabilir veya 1 ile 3650 gün arasında olmalıdır.",
   sideEffectIds: "Yan etki seçimi geçersiz.",
   moderasyon: "İçerik yayınlanamadı, lütfen metni gözden geçirin.",
-  limit: "Çok sık işlem yaptınız; lütfen bir süre sonra tekrar deneyin.",
+  limit: RATE_LIMIT_ERROR_MESSAGE,
   _root: "Bir şeyler ters gitti, lütfen tekrar deneyin.",
 };
 

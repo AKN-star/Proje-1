@@ -122,6 +122,27 @@ export async function listQuestions(
   }));
 }
 
+/** generateMetadata için tek satırlık hafif sorgu — yanıt/skor zinciri
+ * koşulmaz (Faz 7 T2; sayfa gövdesi tam sorguyu ayrıca koşar). */
+export async function getQuestionMeta(
+  db: Db,
+  questionId: string,
+): Promise<{ title: string; topicName: string } | null> {
+  const [row] = await db
+    .select({ title: questions.title, topicName: topics.canonicalName })
+    .from(questions)
+    .innerJoin(topics, eq(topics.id, questions.topicId))
+    .where(
+      and(
+        eq(questions.id, questionId),
+        eq(questions.status, "published"),
+        eq(topics.status, "active"),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
 export interface QuestionDetail {
   id: string;
   title: string;

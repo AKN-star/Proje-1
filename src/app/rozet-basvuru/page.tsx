@@ -10,6 +10,7 @@ import {
   getLatestBadgeRequest,
 } from "@/lib/badges/requests";
 import { requestBadge } from "@/app/actions/badge";
+import { RATE_LIMIT_ERROR_MESSAGE } from "@/lib/rate-limit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -62,7 +63,7 @@ export default async function RozetBasvuruPage({
       {(hata === "1" || hata === "limit") && (
         <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
           {hata === "limit"
-            ? "Çok sık başvuru yaptınız; lütfen bir süre sonra tekrar deneyin."
+            ? RATE_LIMIT_ERROR_MESSAGE
             : "Başvuru alınamadı. Alanları kontrol edin; bekleyen bir başvurunuz veya mevcut bir rozetiniz varsa yeni başvuru açılamaz."}
         </p>
       )}

@@ -5,7 +5,6 @@
  * scripts/titck-import.mjs ile yükler. Bu modül saf ve testtir edilebilir
  * kısımdır: CSV ayrıştırma + upsert.
  */
-import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { drugDetails, topicI18n, topics } from "@/db/schema";
 import { slugify } from "@/lib/topics/propose";

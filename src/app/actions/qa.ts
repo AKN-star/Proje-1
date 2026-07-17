@@ -23,11 +23,9 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
 import { logModeration } from "@/lib/moderation/log";
 import { castVote } from "@/lib/votes/vote";
+import { UUID_RE } from "@/lib/validate";
 
 const QUESTION_FIELD_ORDER = ["title", "body"] as const;
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function submitQuestion(formData: FormData): Promise<void> {
   const slug = String(formData.get("slug") ?? "");

@@ -97,6 +97,29 @@ export async function listTopics(
   }));
 }
 
+/** generateMetadata için tek satırlık hafif sorgu — deneyim/skor
+ * zinciri koşulmaz (Faz 7 T2; sayfa gövdesi tam sorguyu ayrıca koşar). */
+export async function getTopicMeta(
+  db: Db,
+  slug: string,
+  locale = "tr",
+): Promise<{ name: string | null; canonicalName: string; summary: string | null } | null> {
+  const [row] = await db
+    .select({
+      name: topicI18n.name,
+      canonicalName: topics.canonicalName,
+      summary: topicI18n.summary,
+    })
+    .from(topics)
+    .leftJoin(
+      topicI18n,
+      and(eq(topicI18n.topicId, topics.id), eq(topicI18n.locale, locale)),
+    )
+    .where(and(eq(topics.slug, slug), eq(topics.status, "active")))
+    .limit(1);
+  return row ?? null;
+}
+
 export interface TopicDetail {
   id: string;
   slug: string;

@@ -1,3 +1,4 @@
+import { RATE_LIMIT_ERROR_MESSAGE } from "@/lib/rate-limit";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
@@ -17,7 +18,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   type: "Tür 'durum' veya 'tedavi' olmalıdır.",
   summary: "Özet en fazla 500 karakter olabilir.",
   moderasyon: "Öneri gönderilemedi, lütfen metni gözden geçirin.",
-  limit: "Çok sık işlem yaptınız; lütfen bir süre sonra tekrar deneyin.",
+  limit: RATE_LIMIT_ERROR_MESSAGE,
   _root: "Bir şeyler ters gitti, lütfen tekrar deneyin.",
 };
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
-import { getTopicBySlug, type TopicSort } from "@/lib/queries/topics";
+import { getTopicBySlug, getTopicMeta, type TopicSort } from "@/lib/queries/topics";
 import { getTopicStats } from "@/lib/stats/topic-stats";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
 import { sideEffectTerms } from "@/db/schema";
@@ -32,7 +32,9 @@ const TYPE_LABELS: Record<string, string> = {
   treatment: "Tedavi",
 };
 
-/** SEO (Faz 7 T2): başlık sayfası title/description + OG. */
+/** SEO (Faz 7 T2): başlık sayfası title/description + OG. Ağır deneyim
+ * sorgusu değil, tek satırlık meta sorgusu (getTopicMeta) kullanılır —
+ * sayfa gövdesi kendi tam sorgusunu zaten koşuyor. */
 export async function generateMetadata({
   params,
 }: {
@@ -40,13 +42,13 @@ export async function generateMetadata({
 }) {
   const { slug } = await params;
   const db = await getDb();
-  const result = await getTopicBySlug(db, slug);
-  if (!result) return {};
+  const meta = await getTopicMeta(db, slug);
+  if (!meta) return {};
 
-  const name = result.topic.name ?? result.topic.canonicalName;
+  const name = meta.name ?? meta.canonicalName;
   const title = `${name} kullanıcı deneyimleri`;
   const description =
-    result.topic.summary ??
+    meta.summary ??
     `${name} hakkında gerçek kullanıcı deneyimleri, etki puanları ve yan etki istatistikleri.`;
   return {
     title,

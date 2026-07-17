@@ -1,3 +1,4 @@
+import { RATE_LIMIT_ERROR_MESSAGE } from "@/lib/rate-limit";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
@@ -18,7 +19,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   title: "Başlık 5 ile 150 karakter arasında olmalıdır.",
   body: "Metin boş bırakılabilir veya 2 ile 5000 karakter arasında olmalıdır.",
   moderasyon: "İçerik yayınlanamadı, lütfen metni gözden geçirin.",
-  limit: "Çok sık işlem yaptınız; lütfen bir süre sonra tekrar deneyin.",
+  limit: RATE_LIMIT_ERROR_MESSAGE,
   _root: "Bir şeyler ters gitti, lütfen tekrar deneyin.",
 };
 

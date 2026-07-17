@@ -75,17 +75,19 @@ async function run(query) {
   let inserted = 0;
   let skipped = 0;
 
+  // Mevcut slug'lar tek sorguda (lib ile aynı davranış); CSV içi
+  // yinelenen adlar da Set üstünden yakalanır.
+  const existingSlugs = new Set(
+    (await query("SELECT slug FROM topics", [])).map((r) => r.slug),
+  );
+
   for (const row of rows) {
     const slug = slugify(row.name);
-    if (!slug) {
+    if (!slug || existingSlugs.has(slug)) {
       skipped++;
       continue;
     }
-    const existing = await query("SELECT id FROM topics WHERE slug = $1 LIMIT 1", [slug]);
-    if (existing.length > 0) {
-      skipped++;
-      continue;
-    }
+    existingSlugs.add(slug);
     if (!dryRun) {
       const topicRows = await query(
         "INSERT INTO topics (slug, type, status, canonical_name) VALUES ($1, 'drug', 'active', $2) RETURNING id",
