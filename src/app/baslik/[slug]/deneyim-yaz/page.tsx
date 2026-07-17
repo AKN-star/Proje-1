@@ -22,6 +22,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   durationDays: "Süre boş bırakılabilir veya 1 ile 3650 gün arasında olmalıdır.",
   sideEffectIds: "Yan etki seçimi geçersiz.",
   moderasyon: "İçerik yayınlanamadı, lütfen metni gözden geçirin.",
+  limit: "Çok sık işlem yaptınız; lütfen bir süre sonra tekrar deneyin.",
   _root: "Bir şeyler ters gitti, lütfen tekrar deneyin.",
 };
 

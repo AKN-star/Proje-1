@@ -22,6 +22,7 @@ export const dynamic = "force-dynamic";
 const ERROR_MESSAGES: Record<string, string> = {
   body: "Metin 2 ile 5000 karakter arasında olmalıdır.",
   moderasyon: "İçerik yayınlanamadı, lütfen metni gözden geçirin.",
+  limit: "Çok sık işlem yaptınız; lütfen bir süre sonra tekrar deneyin.",
   _root: "Bir şeyler ters gitti, lütfen tekrar deneyin.",
 };
 

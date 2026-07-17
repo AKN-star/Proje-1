@@ -13,6 +13,7 @@ import { getDb } from "@/db";
 import { answers, experiences, questions } from "@/db/schema";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
 import { getOrCreateTranslation } from "@/lib/translations/cache";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { isLocale } from "@/lib/locales";
 import { appendQuery, safeInternalPath } from "@/lib/url";
 import { UUID_RE } from "@/lib/validate";
@@ -41,6 +42,12 @@ export async function requestTranslation(formData: FormData): Promise<void> {
 
   if (profile?.bannedAt) {
     redirect(returnPath);
+  }
+
+  // Global pencere (translations'ta user_id yok — spec kickoff notu);
+  // aşımda mevcut çeviri-hatası banner'ı gösterilir.
+  if (!(await checkRateLimit(db, session.user.id, "translation"))) {
+    redirect(appendQuery(returnPath, "cevirHata=1"));
   }
 
   const targetTypeRaw = String(formData.get("targetType") ?? "");

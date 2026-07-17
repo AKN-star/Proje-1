@@ -19,6 +19,7 @@ import {
 import { moderate } from "@/lib/ai/moderate";
 import { createAnswer, createQuestion } from "@/lib/qa/questions";
 import { statusForVerdict } from "@/lib/experiences/create";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
 import { logModeration } from "@/lib/moderation/log";
 import { castVote } from "@/lib/votes/vote";
@@ -50,6 +51,10 @@ export async function submitQuestion(formData: FormData): Promise<void> {
 
   if (profile?.bannedAt) {
     redirect(`${returnPath}?hata=_root`);
+  }
+
+  if (!(await checkRateLimit(db, session.user.id, "question"))) {
+    redirect(`${returnPath}?hata=limit`);
   }
 
   const [topic] = await db
@@ -139,6 +144,10 @@ export async function submitAnswer(formData: FormData): Promise<void> {
 
   if (profile?.bannedAt) {
     redirect(`${returnPath}?hata=_root`);
+  }
+
+  if (!(await checkRateLimit(db, session.user.id, "answer"))) {
+    redirect(`${returnPath}?hata=limit`);
   }
 
   const [question] = await db

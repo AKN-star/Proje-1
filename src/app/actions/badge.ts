@@ -11,6 +11,7 @@ import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { createBadgeRequest, isClaimedRole } from "@/lib/badges/requests";
 import { sendBadgeRequestNotice } from "@/lib/email/send";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
 
 export async function requestBadge(formData: FormData): Promise<void> {
@@ -27,6 +28,10 @@ export async function requestBadge(formData: FormData): Promise<void> {
   }
   if (profile?.bannedAt) {
     redirect("/rozet-basvuru?hata=1");
+  }
+
+  if (!(await checkRateLimit(db, session.user.id, "badge"))) {
+    redirect("/rozet-basvuru?hata=limit");
   }
 
   const claimedRole = String(formData.get("claimedRole") ?? "");

@@ -17,6 +17,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   type: "Tür 'durum' veya 'tedavi' olmalıdır.",
   summary: "Özet en fazla 500 karakter olabilir.",
   moderasyon: "Öneri gönderilemedi, lütfen metni gözden geçirin.",
+  limit: "Çok sık işlem yaptınız; lütfen bir süre sonra tekrar deneyin.",
   _root: "Bir şeyler ters gitti, lütfen tekrar deneyin.",
 };
 

@@ -14,6 +14,7 @@ import { getDb } from "@/db";
 import { validateTopicProposalInput } from "@/lib/validation/topic";
 import { moderate } from "@/lib/ai/moderate";
 import { proposeTopic } from "@/lib/topics/propose";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
 import { logModeration } from "@/lib/moderation/log";
 
@@ -35,6 +36,10 @@ export async function submitTopicProposal(formData: FormData): Promise<void> {
 
   if (profile?.bannedAt) {
     redirect(`${RETURN_PATH}?hata=_root`);
+  }
+
+  if (!(await checkRateLimit(db, session.user.id, "topic"))) {
+    redirect(`${RETURN_PATH}?hata=limit`);
   }
 
   const rawInput = {
