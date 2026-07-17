@@ -6,7 +6,7 @@ import path from "node:path";
 import * as schema from "@/db/schema";
 import { seed } from "@/db/seed";
 import { topics, users, experiences } from "@/db/schema";
-import { getTopicBySlug, listTopics } from "./topics";
+import { getTopicBySlug, listTopics, searchRank } from "./topics";
 import { castVote } from "@/lib/votes/vote";
 
 let client: PGlite;
@@ -64,6 +64,32 @@ describe("listTopics", () => {
     const result = await listTopics(db, { q: "parasetamol", locale: "tr" });
     const slugs = result.map((t) => t.slug).sort();
     expect(slugs).toEqual(["calpol", "parol"]);
+  });
+
+  it("tam eşleşen başlık, yalnız içeren başlıkların önünde döner", async () => {
+    // "Parol" tam ad; "parasetamol" araması Calpol/Parol'u etken maddeden
+    // bulur ama "parol" araması Parol'u tam eşleşme olarak öne almalı.
+    await db.insert(topics).values({
+      slug: "parolin-forte",
+      type: "drug",
+      canonicalName: "Parolin Forte",
+    });
+    const result = await listTopics(db, { q: "parol", locale: "tr" });
+    expect(result[0].slug).toBe("parol");
+  });
+});
+
+describe("searchRank", () => {
+  it("tam < baştan < içerir < eşleşmez sırasında puanlar", () => {
+    expect(searchRank("parol", ["Parol"])).toBe(0);
+    expect(searchRank("parol", ["Parolin Forte"])).toBe(1);
+    expect(searchRank("parol", ["Superparol"])).toBe(2);
+    expect(searchRank("parol", ["Majezik", null])).toBe(3);
+  });
+
+  it("Türkçe küçük harfe göre karşılaştırır ve alanların en iyisini alır", () => {
+    expect(searchRank("İBUPROFEN", ["ibuprofen"])).toBe(0);
+    expect(searchRank("par", ["Majezik", "Parol"])).toBe(1);
   });
 });
 

@@ -43,21 +43,41 @@ export default async function Home({
         <p className="text-muted-foreground">{brand.tagline.tr}</p>
       </div>
 
-      <form method="GET" className="flex gap-2">
-        <Input
-          type="search"
-          name="q"
-          defaultValue={q ?? ""}
-          placeholder="İlaç, etken madde veya hastalık ara..."
-          aria-label="Ara"
-        />
-        <Button type="submit">Ara</Button>
-      </form>
+      <div className="flex flex-col gap-1.5">
+        <form method="GET" className="flex gap-2">
+          <Input
+            type="search"
+            name="q"
+            defaultValue={q ?? ""}
+            placeholder="İlaç, etken madde veya hastalık ara..."
+            aria-label="Ara"
+          />
+          <Button type="submit">Ara</Button>
+        </form>
+        <p className="text-right text-sm text-muted-foreground">
+          Aradığınız başlık yok mu?{" "}
+          <Link href="/baslik-oner" className="underline underline-offset-2 hover:text-foreground">
+            Başlık önerin
+          </Link>
+        </p>
+      </div>
 
       <div className="flex flex-col gap-3">
         {topicList.length === 0 ? (
           <p className="text-center text-muted-foreground">
-            {q ? `"${q}" için sonuç bulunamadı.` : "Henüz konu eklenmemiş."}
+            {q ? (
+              <>
+                &quot;{q}&quot; için sonuç bulunamadı.{" "}
+                <Link
+                  href="/baslik-oner"
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  Bu başlığı önerin
+                </Link>
+              </>
+            ) : (
+              "Henüz konu eklenmemiş."
+            )}
           </p>
         ) : (
           topicList.map((topic) => (
