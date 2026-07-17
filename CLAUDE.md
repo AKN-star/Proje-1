@@ -6,12 +6,14 @@
 
 ## Durum
 
-- **Aktif faz:** Faz 0-6 master'a merge edildi (PR #1-#8, CI yeşil) —
-  sırada Faz 7 (yayın sertleşmesi).
+- **Aktif faz:** Faz 0-7 master'a merge edildi (PR #1-#10, CI yeşil) —
+  ana plan kod tarafı tamam; kalanlar insan adımları + onay kapıları.
 - Bekleyen insan adımları: Neon + Vercel hesapları (canlı yayın için);
   Vercel'e ANTHROPIC_API_KEY; prod'da admin:grant; opsiyonel Resend
   anahtarı; next-intl onayı (UI i18n → Faz 5.1); Google Cloud OAuth
-  client (AUTH_GOOGLE_ID/SECRET → Vercel, Faz 6).
+  client (Faz 6); Sentry/Playwright bağımlılık onayı (→ Faz 7.1/7.2);
+  TİTCK lisans teyidi + CSV import; yasal metinlerin hukuk incelemesi;
+  domain + launch anı (Vercel'de SITE_LAUNCHED=1 + SITE_URL).
 - Yerel e2e: `npm run build && npm start` kullan (`next dev` çok işlemli,
   dosya tabanlı PGlite çökebiliyor — spec kapanış notları).
 
