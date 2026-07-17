@@ -116,6 +116,7 @@ export interface ExperienceListItem {
   durationDays: number | null;
   effectiveness: number;
   body: string;
+  lang: string;
   createdAt: Date;
   sideEffects: string[];
   score: number;
@@ -173,6 +174,7 @@ export async function getTopicBySlug(
       durationDays: experiences.durationDays,
       effectiveness: experiences.effectiveness,
       body: experiences.body,
+      lang: experiences.lang,
       createdAt: experiences.createdAt,
     })
     .from(experiences)

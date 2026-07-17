@@ -4,14 +4,13 @@ import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { getQuestion } from "@/lib/qa/questions";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
-import { answers as answersTable, questions as questionsTable, users } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { MedicalDisclaimer } from "@/components/medical-disclaimer";
 import { submitAnswer, voteAnswer } from "@/app/actions/qa";
-import { requestTranslation } from "@/app/actions/translate";
-import { getCachedTranslation } from "@/lib/translations/cache";
+import { getFreshTranslation } from "@/lib/translations/cache";
+import { TranslateButton, TranslationBlock } from "@/components/translation";
+import { normalizeLocale, isLocale, type Locale } from "@/lib/locales";
 import { cn } from "@/lib/utils";
 
 // Canlı DB verisi gösterir; build sırasında prerender edilmez (PGlite
@@ -30,27 +29,6 @@ function formatDate(date: Date): string {
     month: "long",
     year: "numeric",
   }).format(date);
-}
-
-const TRANSLATION_NOTES: Record<string, string> = {
-  tr: "Otomatik çeviri — hatalı olabilir",
-  en: "Automatic translation — may contain errors",
-};
-
-/** cevir/dil/cevirHata dışındaki mevcut query param'ları koruyarak
- * dönüş yolunu kurar (Faz 5 T3). */
-function buildReturnPath(
-  pathname: string,
-  searchParams: Record<string, string | undefined>,
-): string {
-  const sp = new URLSearchParams();
-  for (const [key, value] of Object.entries(searchParams)) {
-    if (!value) continue;
-    if (key === "cevir" || key === "dil" || key === "cevirHata") continue;
-    sp.set(key, value);
-  }
-  const qs = sp.toString();
-  return qs ? `${pathname}?${qs}` : pathname;
 }
 
 export default async function SoruPage({
@@ -78,65 +56,70 @@ export default async function SoruPage({
 
   const { question, answers } = result;
 
+  // Çevir butonu yalnız action'ın kabul edeceği kullanıcıya gösterilir
+  // (girişli + onboarded + banlı değil).
   let onboarded = false;
-  let userLocale: "tr" | "en" | null = null;
+  let userLocale: Locale | null = null;
   if (session?.user) {
     const profile = await getOnboardingProfile(db, session.user.id);
     onboarded = isOnboarded(profile);
-    const [profileRow] = await db
-      .select({ locale: users.locale })
-      .from(users)
-      .where(eq(users.id, session.user.id))
-      .limit(1);
-    userLocale = profileRow?.locale === "en" ? "en" : "tr";
-  }
-
-  const [questionLangRow] = await db
-    .select({ lang: questionsTable.lang })
-    .from(questionsTable)
-    .where(eq(questionsTable.id, question.id))
-    .limit(1);
-  const questionLang = questionLangRow?.lang ?? "tr";
-
-  const answerLangs = new Map<string, string>();
-  if (answers.length > 0) {
-    const langRows = await db
-      .select({ id: answersTable.id, lang: answersTable.lang })
-      .from(answersTable)
-      .where(
-        inArray(
-          answersTable.id,
-          answers.map((a) => a.id),
-        ),
-      );
-    for (const row of langRows) {
-      answerLangs.set(row.id, row.lang);
+    if (onboarded && !profile?.bannedAt) {
+      userLocale = normalizeLocale(profile?.locale);
     }
   }
 
-  const returnPath = buildReturnPath(`/soru/${id}`, { hata });
+  // hata tek seferlik flash — returnPath'e taşınmaz.
+  const returnPath = `/soru/${id}`;
 
   const [cevirType, cevirId] = cevir ? cevir.split(":") : [undefined, undefined];
-  const cevirLocale = dil === "en" ? "en" : dil === "tr" ? "tr" : undefined;
+  const cevirLocale = dil && isLocale(dil) ? dil : undefined;
 
-  const translatedQuestionTitle =
+  // Çeviriler yalnız sayfadaki gerçek satırlar üstünden ve hash güncelse
+  // okunur; soru bloğu ancak tüm alanları (başlık + varsa gövde)
+  // çevrilmişse gösterilir — yarım çeviri tam gibi sunulmaz.
+  const wantQuestion =
     cevirType === "question" && cevirId === question.id && cevirLocale
-      ? (await getCachedTranslation(db, "question", question.id, "title", cevirLocale))
-          ?.text ?? null
-      : null;
-  const translatedQuestionBody =
-    cevirType === "question" && cevirId === question.id && cevirLocale && question.body
-      ? (await getCachedTranslation(db, "question", question.id, "body", cevirLocale))
-          ?.text ?? null
+      ? cevirLocale
+      : undefined;
+  const [questionTitleTr, questionBodyTr] = wantQuestion
+    ? await Promise.all([
+        getFreshTranslation(db, {
+          targetType: "question",
+          targetId: question.id,
+          field: "title",
+          locale: wantQuestion,
+          sourceText: question.title,
+        }),
+        question.body
+          ? getFreshTranslation(db, {
+              targetType: "question",
+              targetId: question.id,
+              field: "body",
+              locale: wantQuestion,
+              sourceText: question.body,
+            })
+          : Promise.resolve(null),
+      ])
+    : [null, null];
+  const questionTranslation =
+    questionTitleTr && (!question.body || questionBodyTr)
+      ? { title: questionTitleTr, body: questionBodyTr }
       : null;
 
-  const translatedAnswerBodies = new Map<string, string>();
-  if (cevirType === "answer" && cevirId && cevirLocale) {
-    const cached = await getCachedTranslation(db, "answer", cevirId, "body", cevirLocale);
-    if (cached) {
-      translatedAnswerBodies.set(cevirId, cached.text);
-    }
-  }
+  const cevirAnswer =
+    cevirType === "answer" && cevirId
+      ? answers.find((a) => a.id === cevirId)
+      : undefined;
+  const translatedAnswerBody =
+    cevirAnswer && cevirLocale
+      ? await getFreshTranslation(db, {
+          targetType: "answer",
+          targetId: cevirAnswer.id,
+          field: "body",
+          locale: cevirLocale,
+          sourceText: cevirAnswer.body,
+        })
+      : null;
 
   const errorMessage = hata ? ERROR_MESSAGES[hata] ?? ERROR_MESSAGES._root : null;
 
@@ -158,33 +141,23 @@ export default async function SoruPage({
           <p className="mt-2 whitespace-pre-wrap text-sm">{question.body}</p>
         )}
 
-        {userLocale && questionLang !== userLocale && (
-          <form action={requestTranslation} className="mt-2">
-            <input type="hidden" name="targetType" value="question" />
-            <input type="hidden" name="targetId" value={question.id} />
-            <input type="hidden" name="locale" value={userLocale} />
-            <input type="hidden" name="returnPath" value={returnPath} />
-            <button
-              type="submit"
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-7 text-xs")}
-            >
-              {userLocale === "en" ? "Translate (TR)" : "Çevir (EN)"}
-            </button>
-          </form>
+        {userLocale && question.lang !== userLocale && (
+          <TranslateButton
+            targetType="question"
+            targetId={question.id}
+            locale={userLocale}
+            returnPath={returnPath}
+            className="mt-2"
+          />
         )}
 
-        {(translatedQuestionTitle || translatedQuestionBody) && (
-          <div className="mt-2 flex flex-col gap-1 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm dark:border-sky-900 dark:bg-sky-950">
-            {translatedQuestionTitle && (
-              <p className="font-medium">{translatedQuestionTitle}</p>
+        {questionTranslation && wantQuestion && (
+          <TranslationBlock locale={wantQuestion} className="mt-2">
+            <p className="font-medium">{questionTranslation.title}</p>
+            {questionTranslation.body && (
+              <p className="whitespace-pre-wrap">{questionTranslation.body}</p>
             )}
-            {translatedQuestionBody && (
-              <p className="whitespace-pre-wrap">{translatedQuestionBody}</p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              {TRANSLATION_NOTES[cevirLocale ?? "tr"]}
-            </p>
-          </div>
+          </TranslationBlock>
         )}
       </div>
 
@@ -226,38 +199,21 @@ export default async function SoruPage({
               <CardContent className="flex flex-col gap-3">
                 <p className="whitespace-pre-wrap text-sm">{answer.body}</p>
 
-                {userLocale &&
-                  answerLangs.get(answer.id) &&
-                  answerLangs.get(answer.id) !== userLocale && (
-                    <form action={requestTranslation}>
-                      <input type="hidden" name="targetType" value="answer" />
-                      <input type="hidden" name="targetId" value={answer.id} />
-                      <input type="hidden" name="locale" value={userLocale} />
-                      <input type="hidden" name="returnPath" value={returnPath} />
-                      <button
-                        type="submit"
-                        className={cn(
-                          buttonVariants({ variant: "outline", size: "sm" }),
-                          "h-7 text-xs",
-                        )}
-                      >
-                        {userLocale === "en" ? "Translate (TR)" : "Çevir (EN)"}
-                      </button>
-                    </form>
-                  )}
+                {userLocale && answer.lang !== userLocale && (
+                  <TranslateButton
+                    targetType="answer"
+                    targetId={answer.id}
+                    locale={userLocale}
+                    returnPath={returnPath}
+                  />
+                )}
 
-                {cevirType === "answer" &&
-                  cevirId === answer.id &&
+                {cevirAnswer?.id === answer.id &&
                   cevirLocale &&
-                  translatedAnswerBodies.get(answer.id) && (
-                    <div className="flex flex-col gap-1 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm dark:border-sky-900 dark:bg-sky-950">
-                      <p className="whitespace-pre-wrap">
-                        {translatedAnswerBodies.get(answer.id)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {TRANSLATION_NOTES[cevirLocale]}
-                      </p>
-                    </div>
+                  translatedAnswerBody && (
+                    <TranslationBlock locale={cevirLocale}>
+                      <p className="whitespace-pre-wrap">{translatedAnswerBody}</p>
+                    </TranslationBlock>
                   )}
 
                 <div className="flex items-center gap-1 text-sm">

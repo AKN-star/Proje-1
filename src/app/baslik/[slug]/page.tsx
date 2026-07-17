@@ -4,8 +4,9 @@ import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { getTopicBySlug, type TopicSort } from "@/lib/queries/topics";
 import { getTopicStats } from "@/lib/stats/topic-stats";
-import { experiences as experiencesTable, sideEffectTerms, users } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
+import { sideEffectTerms } from "@/db/schema";
+import { inArray } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
@@ -14,8 +15,10 @@ import { voteExperience } from "@/app/actions/vote";
 import { reportExperience } from "@/app/actions/report";
 import { REPORT_REASONS } from "@/lib/reports/report";
 import { listQuestions } from "@/lib/qa/questions";
-import { requestTranslation } from "@/app/actions/translate";
-import { getCachedTranslation } from "@/lib/translations/cache";
+import { getFreshTranslation } from "@/lib/translations/cache";
+import { TranslateButton, TranslationBlock } from "@/components/translation";
+import { normalizeLocale, isLocale, type Locale } from "@/lib/locales";
+import { buildReturnPath } from "@/lib/url";
 import { cn } from "@/lib/utils";
 
 // Canlı DB verisi gösterir; build sırasında prerender edilmez (PGlite
@@ -34,27 +37,6 @@ function formatDate(date: Date): string {
     month: "long",
     year: "numeric",
   }).format(date);
-}
-
-const TRANSLATION_NOTES: Record<string, string> = {
-  tr: "Otomatik çeviri — hatalı olabilir",
-  en: "Automatic translation — may contain errors",
-};
-
-/** cevir/dil/cevirHata dışındaki mevcut query param'ları koruyarak
- * dönüş yolunu kurar (Faz 5 T3). */
-function buildReturnPath(
-  pathname: string,
-  searchParams: Record<string, string | undefined>,
-): string {
-  const sp = new URLSearchParams();
-  for (const [key, value] of Object.entries(searchParams)) {
-    if (!value) continue;
-    if (key === "cevir" || key === "dil" || key === "cevirHata") continue;
-    sp.set(key, value);
-  }
-  const qs = sp.toString();
-  return qs ? `${pathname}?${qs}` : pathname;
 }
 
 function EffectivenessStars({ value }: { value: number }) {
@@ -93,47 +75,38 @@ export default async function TopicPage({
 
   const { topic, experiences } = result;
 
-  // Girişli kullanıcının çeviri locale tercihi; girişsizde Çevir
-  // butonu hiç gösterilmez (spec: çeviri girişli kullanıcı gerektirir).
-  let userLocale: "tr" | "en" | null = null;
+  // Girişli + onboarded + banlı olmayan kullanıcının çeviri locale
+  // tercihi; aksi halde Çevir butonu hiç gösterilmez (action'daki
+  // guard'larla aynı koşul — buton tıklanınca sessizce sekmesin).
+  let userLocale: Locale | null = null;
   if (session?.user) {
-    const [profileRow] = await db
-      .select({ locale: users.locale })
-      .from(users)
-      .where(eq(users.id, session.user.id))
-      .limit(1);
-    userLocale = profileRow?.locale === "en" ? "en" : "tr";
-  }
-
-  const experienceLangs = new Map<string, string>();
-  if (experiences.length > 0) {
-    const langRows = await db
-      .select({ id: experiencesTable.id, lang: experiencesTable.lang })
-      .from(experiencesTable)
-      .where(
-        inArray(
-          experiencesTable.id,
-          experiences.map((e) => e.id),
-        ),
-      );
-    for (const row of langRows) {
-      experienceLangs.set(row.id, row.lang);
+    const profile = await getOnboardingProfile(db, session.user.id);
+    if (isOnboarded(profile) && !profile?.bannedAt) {
+      userLocale = normalizeLocale(profile?.locale);
     }
   }
 
-  const returnPath = buildReturnPath(`/baslik/${slug}`, {
-    sirala,
-    bildirildi,
-  });
+  // bildirildi tek seferlik flash — returnPath'e taşınmaz.
+  const returnPath = buildReturnPath(`/baslik/${slug}`, { sirala });
 
   const [cevirType, cevirId] = cevir ? cevir.split(":") : [undefined, undefined];
-  const cevirLocale = dil === "en" ? "en" : dil === "tr" ? "tr" : undefined;
+  const cevirLocale = dil && isLocale(dil) ? dil : undefined;
 
+  // Çeviri yalnız sayfadaki gerçek satır üstünden okunur (rastgele
+  // ?cevir= id'si sorguya inmez) ve hash güncel değilse gösterilmez.
+  const cevirExperience =
+    cevirType === "experience" && cevirId
+      ? experiences.find((e) => e.id === cevirId)
+      : undefined;
   const translatedExperienceBody =
-    cevirType === "experience" && cevirId && cevirLocale
-      ? (
-          await getCachedTranslation(db, "experience", cevirId, "body", cevirLocale)
-        )?.text ?? null
+    cevirExperience && cevirLocale
+      ? await getFreshTranslation(db, {
+          targetType: "experience",
+          targetId: cevirExperience.id,
+          field: "body",
+          locale: cevirLocale,
+          sourceText: cevirExperience.body,
+        })
       : null;
   const displayName = topic.name ?? topic.canonicalName;
   const detailParts = [topic.activeIngredient, topic.form, topic.strength].filter(
@@ -285,35 +258,21 @@ export default async function TopicPage({
                 )}
                 <p className="whitespace-pre-wrap text-sm">{experience.body}</p>
 
-                {userLocale &&
-                  experienceLangs.get(experience.id) &&
-                  experienceLangs.get(experience.id) !== userLocale && (
-                    <form action={requestTranslation}>
-                      <input type="hidden" name="targetType" value="experience" />
-                      <input type="hidden" name="targetId" value={experience.id} />
-                      <input type="hidden" name="locale" value={userLocale} />
-                      <input type="hidden" name="returnPath" value={returnPath} />
-                      <button
-                        type="submit"
-                        className={cn(
-                          buttonVariants({ variant: "outline", size: "sm" }),
-                          "h-7 text-xs",
-                        )}
-                      >
-                        {userLocale === "en" ? "Translate (TR)" : "Çevir (EN)"}
-                      </button>
-                    </form>
-                  )}
+                {userLocale && experience.lang !== userLocale && (
+                  <TranslateButton
+                    targetType="experience"
+                    targetId={experience.id}
+                    locale={userLocale}
+                    returnPath={returnPath}
+                  />
+                )}
 
-                {cevirType === "experience" &&
-                  cevirId === experience.id &&
+                {cevirExperience?.id === experience.id &&
+                  cevirLocale &&
                   translatedExperienceBody && (
-                    <div className="flex flex-col gap-1 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm dark:border-sky-900 dark:bg-sky-950">
+                    <TranslationBlock locale={cevirLocale}>
                       <p className="whitespace-pre-wrap">{translatedExperienceBody}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {TRANSLATION_NOTES[cevirLocale ?? "tr"]}
-                      </p>
-                    </div>
+                    </TranslationBlock>
                   )}
 
                 <div className="flex items-center justify-between gap-2">

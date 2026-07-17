@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
-import { users } from "@/db/schema";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
+import { normalizeLocale } from "@/lib/locales";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { updateLocale } from "@/app/actions/settings";
@@ -29,12 +28,7 @@ export default async function AyarlarPage({
 
   const { kaydedildi } = await searchParams;
 
-  const [row] = await db
-    .select({ locale: users.locale })
-    .from(users)
-    .where(eq(users.id, session.user.id))
-    .limit(1);
-  const currentLocale = row?.locale === "en" ? "en" : "tr";
+  const currentLocale = normalizeLocale(profile?.locale);
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col gap-6 px-4 py-12">
