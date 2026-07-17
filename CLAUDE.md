@@ -6,11 +6,12 @@
 
 ## Durum
 
-- **Aktif faz:** Faz 0-5 master'a merge edildi (PR #1-#6, CI yeşil) —
-  sırada Faz 6 (rozet + Google OAuth).
+- **Aktif faz:** Faz 0-6 master'a merge edildi (PR #1-#8, CI yeşil) —
+  sırada Faz 7 (yayın sertleşmesi).
 - Bekleyen insan adımları: Neon + Vercel hesapları (canlı yayın için);
   Vercel'e ANTHROPIC_API_KEY; prod'da admin:grant; opsiyonel Resend
-  anahtarı; next-intl onayı (UI i18n → Faz 5.1).
+  anahtarı; next-intl onayı (UI i18n → Faz 5.1); Google Cloud OAuth
+  client (AUTH_GOOGLE_ID/SECRET → Vercel, Faz 6).
 - Yerel e2e: `npm run build && npm start` kullan (`next dev` çok işlemli,
   dosya tabanlı PGlite çökebiliyor — spec kapanış notları).
 
