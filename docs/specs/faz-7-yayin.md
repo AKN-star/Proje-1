@@ -63,6 +63,14 @@ KVKK/yasal metin taslakları, TİTCK import hazırlığı.
 ## T4 — TİTCK import hazırlığı
 - Lisans araştırması (web): sonuç bu spec'in altına not düşülür; izin
   belirsizse veri ÇEKİLMEZ, yalnız script iskeleti kalır.
+- **LİSANS NOTU (2026-07-17):** titck.gov.tr "Ruhsatlı Ürünler Listesi"
+  (dinamikmodul/85) xlsx dosyaları herkese açık; sayfada açık lisans,
+  kullanım şartı veya yeniden kullanım yasağı YOK (yalnız genel
+  "Copyright © Titck" alt bilgisi). Kamu kurumu düzenleyici verisi ve
+  ilaç adı/etkin madde olgusal veri olsa da açık izin bulunmadığından
+  otomatik çekim yapılmadı; İNSAN ADIMI: gerekirse
+  elektronikveri@titck.gov.tr'den teyit, dosyayı indirip CSV'ye çevirip
+  `npm run titck:import -- dosya.csv [--dry-run]` çalıştırmak.
 - `scripts/titck-import.ts`: insan tarafından indirilen CSV yolunu alır;
   satırları topics(type='drug') + drug_details(source='titck') +
   topic_i18n(tr) olarak upsert eder (slug çakışmasında mevcut korunur);
