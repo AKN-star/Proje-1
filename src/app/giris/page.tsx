@@ -1,13 +1,11 @@
 import { brand } from "@/config/brand";
 import { signIn } from "@/auth";
+import { safeInternalPath } from "@/lib/url";
 
 async function sendMagicLinkAction(formData: FormData) {
   "use server";
   const email = String(formData.get("email") ?? "");
-  const next = String(formData.get("next") ?? "");
-  // Açık redirect engeli: yalnız site içi yollar.
-  const redirectTo =
-    next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  const redirectTo = safeInternalPath(formData.get("next"));
   await signIn("email", { email, redirectTo });
 }
 

@@ -10,6 +10,8 @@ import { and, eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { translations } from "@/db/schema";
 import { translateText } from "@/lib/ai/translate";
+import { moderate } from "@/lib/ai/moderate";
+import type { Locale } from "@/lib/locales";
 
 export type TranslationTargetType = "experience" | "question" | "answer";
 
@@ -17,7 +19,7 @@ export interface TranslationRequest {
   targetType: TranslationTargetType;
   targetId: string;
   field: string;
-  locale: "tr" | "en";
+  locale: Locale;
   sourceText: string;
 }
 
@@ -31,7 +33,7 @@ export async function getCachedTranslation(
   targetType: TranslationTargetType,
   targetId: string,
   field: string,
-  locale: "tr" | "en",
+  locale: Locale,
 ): Promise<{ text: string; sourceHash: string } | null> {
   const [row] = await db
     .select({ text: translations.text, sourceHash: translations.sourceHash })
@@ -46,6 +48,22 @@ export async function getCachedTranslation(
     )
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * Sayfa render'ı için okuma: yalnız hash'i güncel kaynak metinle eşleşen
+ * çeviriyi döner (kickoff kararı #8 — bayat çeviri servis edilmez).
+ */
+export async function getFreshTranslation(
+  db: Db,
+  request: TranslationRequest,
+): Promise<string | null> {
+  const { targetType, targetId, field, locale, sourceText } = request;
+  const row = await getCachedTranslation(db, targetType, targetId, field, locale);
+  if (row && row.sourceHash === hashSourceText(sourceText)) {
+    return row.text;
+  }
+  return null;
 }
 
 /**
@@ -68,6 +86,15 @@ export async function getOrCreateTranslation(
 
   const result = await translateText(sourceText, locale);
   if (!result.ok) {
+    return null;
+  }
+
+  // Kritik kural #3: yayınlanan her içerik moderate'ten geçer — model
+  // çıktısı da yeni yayın içeriğidir. Çeviride 'pending' durumu yok;
+  // 'ok' dışındaki her verdict'te (flag/block/timeout) temkinli davranıp
+  // servis etmeyiz ve önbelleğe yazmayız.
+  const moderation = await moderate(result.text, targetType);
+  if (moderation.verdict !== "ok") {
     return null;
   }
 

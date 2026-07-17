@@ -10,9 +10,17 @@ import { users, experiences } from "@/db/schema";
 vi.mock("@/lib/ai/translate", () => ({
   translateText: vi.fn(),
 }));
+vi.mock("@/lib/ai/moderate", () => ({
+  moderate: vi.fn(),
+}));
 
 import { translateText } from "@/lib/ai/translate";
-import { getCachedTranslation, getOrCreateTranslation } from "./cache";
+import { moderate } from "@/lib/ai/moderate";
+import {
+  getCachedTranslation,
+  getFreshTranslation,
+  getOrCreateTranslation,
+} from "./cache";
 
 let client: PGlite;
 let db: PgliteDatabase<typeof schema>;
@@ -21,6 +29,8 @@ const MIGRATIONS_DIR = path.resolve(__dirname, "../../../drizzle");
 
 beforeEach(async () => {
   vi.mocked(translateText).mockReset();
+  vi.mocked(moderate).mockReset();
+  vi.mocked(moderate).mockResolvedValue({ verdict: "ok", reasons: [] });
   client = new PGlite();
   db = drizzle(client, { schema });
 
@@ -198,5 +208,72 @@ describe("getOrCreateTranslation", () => {
       "en",
     );
     expect(cached).toBeNull();
+  });
+
+  it("moderasyon 'ok' vermezse çeviri servis edilmez ve önbelleğe yazılmaz (kritik kural #3)", async () => {
+    const experience = await makeExperience("Moderasyondan dönecek metin.");
+    vi.mocked(translateText).mockResolvedValue({
+      ok: true,
+      text: "Blocked translation.",
+      model: "claude-haiku-4-5",
+    });
+    vi.mocked(moderate).mockResolvedValue({ verdict: "block", reasons: ["test"] });
+
+    const result = await getOrCreateTranslation(db, {
+      targetType: "experience",
+      targetId: experience.id,
+      field: "body",
+      locale: "en",
+      sourceText: experience.body,
+    });
+
+    expect(result).toBeNull();
+    expect(moderate).toHaveBeenCalledWith("Blocked translation.", "experience");
+
+    const cached = await getCachedTranslation(
+      db,
+      "experience",
+      experience.id,
+      "body",
+      "en",
+    );
+    expect(cached).toBeNull();
+  });
+});
+
+describe("getFreshTranslation", () => {
+  it("hash güncelse metni döner, kaynak değiştiyse null (bayat çeviri servis edilmez)", async () => {
+    const experience = await makeExperience("Orijinal metin.");
+    vi.mocked(translateText).mockResolvedValue({
+      ok: true,
+      text: "Original text.",
+      model: "claude-haiku-4-5",
+    });
+
+    await getOrCreateTranslation(db, {
+      targetType: "experience",
+      targetId: experience.id,
+      field: "body",
+      locale: "en",
+      sourceText: "Orijinal metin.",
+    });
+
+    const fresh = await getFreshTranslation(db, {
+      targetType: "experience",
+      targetId: experience.id,
+      field: "body",
+      locale: "en",
+      sourceText: "Orijinal metin.",
+    });
+    expect(fresh).toBe("Original text.");
+
+    const stale = await getFreshTranslation(db, {
+      targetType: "experience",
+      targetId: experience.id,
+      field: "body",
+      locale: "en",
+      sourceText: "Düzenlenmiş metin.",
+    });
+    expect(stale).toBeNull();
   });
 });

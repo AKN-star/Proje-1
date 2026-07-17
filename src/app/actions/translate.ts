@@ -13,6 +13,8 @@ import { getDb } from "@/db";
 import { answers, experiences, questions } from "@/db/schema";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
 import { getOrCreateTranslation } from "@/lib/translations/cache";
+import { isLocale } from "@/lib/locales";
+import { appendQuery, safeInternalPath } from "@/lib/url";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -20,28 +22,12 @@ const UUID_RE =
 const TARGET_TYPES = ["experience", "question", "answer"] as const;
 type TargetType = (typeof TARGET_TYPES)[number];
 
-const LOCALES = ["tr", "en"] as const;
-type Locale = (typeof LOCALES)[number];
-
 function isTargetType(value: string): value is TargetType {
   return (TARGET_TYPES as readonly string[]).includes(value);
 }
 
-function isLocale(value: string): value is Locale {
-  return (LOCALES as readonly string[]).includes(value);
-}
-
-/** Açık yönlendirme koruması: yalnız site-içi göreli yol kabul edilir. */
-function safeReturnPath(raw: string): string {
-  if (raw.startsWith("/") && !raw.startsWith("//")) {
-    return raw;
-  }
-  return "/";
-}
-
 export async function requestTranslation(formData: FormData): Promise<void> {
-  const rawReturnPath = String(formData.get("returnPath") ?? "");
-  const returnPath = safeReturnPath(rawReturnPath);
+  const returnPath = safeInternalPath(formData.get("returnPath"));
 
   const session = await auth();
   if (!session?.user) {
@@ -98,25 +84,26 @@ export async function requestTranslation(formData: FormData): Promise<void> {
       .where(and(eq(questions.id, targetId), eq(questions.status, "published")))
       .limit(1);
     if (row) {
-      const titleText = await getOrCreateTranslation(db, {
-        targetType: "question",
-        targetId,
-        field: "title",
-        locale,
-        sourceText: row.title,
-      });
-      let bodyOk = true;
-      if (row.body) {
-        const bodyText = await getOrCreateTranslation(db, {
+      // Başlık ve gövde bağımsız — paralel çevrilir (yarı yarıya latency).
+      const [titleText, bodyText] = await Promise.all([
+        getOrCreateTranslation(db, {
           targetType: "question",
           targetId,
-          field: "body",
+          field: "title",
           locale,
-          sourceText: row.body,
-        });
-        bodyOk = bodyText !== null;
-      }
-      ok = titleText !== null && bodyOk;
+          sourceText: row.title,
+        }),
+        row.body
+          ? getOrCreateTranslation(db, {
+              targetType: "question",
+              targetId,
+              field: "body",
+              locale,
+              sourceText: row.body,
+            })
+          : Promise.resolve(""),
+      ]);
+      ok = titleText !== null && bodyText !== null;
     }
   } else {
     const [row] = await db
@@ -137,8 +124,8 @@ export async function requestTranslation(formData: FormData): Promise<void> {
   }
 
   if (!ok) {
-    redirect(`${returnPath}?cevirHata=1`);
+    redirect(appendQuery(returnPath, "cevirHata=1"));
   }
 
-  redirect(`${returnPath}?cevir=${targetType}:${targetId}&dil=${locale}`);
+  redirect(appendQuery(returnPath, `cevir=${targetType}:${targetId}&dil=${locale}`));
 }

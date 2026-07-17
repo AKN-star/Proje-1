@@ -13,13 +13,7 @@ import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { users } from "@/db/schema";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
-
-const LOCALES = ["tr", "en"] as const;
-type Locale = (typeof LOCALES)[number];
-
-function isLocale(value: string): value is Locale {
-  return (LOCALES as readonly string[]).includes(value);
-}
+import { isLocale } from "@/lib/locales";
 
 export async function updateLocale(formData: FormData): Promise<void> {
   const session = await auth();

@@ -11,12 +11,7 @@ import {
   completeOnboarding,
   validateUsername,
 } from "@/lib/users/onboarding";
-
-/** Açık redirect'i engelle: yalnız site içi yollar. */
-function safeNext(value: FormDataEntryValue | null): string {
-  const next = String(value ?? "");
-  return next.startsWith("/") && !next.startsWith("//") ? next : "/";
-}
+import { safeInternalPath } from "@/lib/url";
 
 export async function submitOnboarding(formData: FormData): Promise<void> {
   const session = await auth();
@@ -24,7 +19,7 @@ export async function submitOnboarding(formData: FormData): Promise<void> {
     redirect("/giris");
   }
 
-  const next = safeNext(formData.get("next"));
+  const next = safeInternalPath(formData.get("next"));
   const returnPath = `/hosgeldin?next=${encodeURIComponent(next)}`;
 
   const username = String(formData.get("username") ?? "")
