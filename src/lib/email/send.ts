@@ -41,3 +41,49 @@ export async function sendMagicLink(to: string, url: string): Promise<void> {
     throw new Error(`Resend gönderim hatası (${res.status}): ${body}`);
   }
 }
+
+/**
+ * Yeni rozet başvurusunu operasyon adresine bildirir (Faz 6). Başvuru
+ * DB'ye yazıldıktan sonra çağrılır ve admin panelde zaten görünür —
+ * e-posta hatası başvuruyu geri almaz; hata burada yutulup loglanır.
+ */
+export async function sendBadgeRequestNotice(request: {
+  username: string;
+  claimedRole: string;
+  institution: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const subject = `${brand.name} — yeni rozet başvurusu: ${request.username}`;
+
+  if (!apiKey) {
+    console.log(
+      `ROZET BAŞVURUSU (dev): ${request.username} / ${request.claimedRole} / ${request.institution}`,
+    );
+    return;
+  }
+
+  // Kurum serbest metin — HTML e-postaya kaçırılmadan gömülmez.
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: EMAIL_FROM,
+        to: [brand.contactEmail],
+        subject,
+        html: `<p>Yeni rozet başvurusu var:</p><ul><li>Kullanıcı: ${esc(request.username)}</li><li>Rol: ${esc(request.claimedRole)}</li><li>Kurum: ${esc(request.institution)}</li></ul><p>Onay/red için admin paneline gidin.</p>`,
+      }),
+    });
+    if (!res.ok) {
+      console.error(`Rozet bildirimi gönderilemedi (${res.status}).`);
+    }
+  } catch (err) {
+    console.error("Rozet bildirimi gönderilemedi:", err);
+  }
+}
