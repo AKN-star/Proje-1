@@ -39,7 +39,9 @@ Reddit/Ekşi tarzı platformlar var ama ilaç ve sağlık deneyimlerine odaklana
 users                  id, email, email_verified, username(unique, takma ad; NULL=onboarding bekliyor),
                        locale('tr'|'en'), role('user'|'pro'|'mod'|'admin'),
                        pro_badge('doctor'|'pharmacist'|null), kvkk_consent_at, created_at
-                       (+ Auth.js adapter tabloları: accounts, sessions, verification_tokens)
+                       (+ Auth.js adapter tabloları: accounts, sessions, verification_tokens;
+                       adapter uyumu için email_verified kolonu DB'de "emailVerified" adıyla,
+                       name/image kolonları nullable olarak tutulur)
 topics                 id, slug(unique), type('drug'|'condition'|'treatment'),
                        status('active'|'pending'|'rejected'), created_by(FK users, null=seed),
                        canonical_name, atc_code(null olabilir)
@@ -50,7 +52,7 @@ experiences            id, topic_id FK NOT NULL, user_id FK NOT NULL, purpose(te
                        status('published'|'pending'|'flagged'|'removed'), created_at
                        -- aynı kullanıcı aynı başlığa birden fazla kayıt bırakabilir
 experience_side_effects experience_id FK, term_id FK side_effect_terms  -- PK(experience_id, term_id)
-side_effect_terms      id, slug(unique), names(jsonb {tr,en})    -- kontrollü sözlük; istatistik bunun üstünden
+side_effect_terms      id, slug(unique), name_tr, name_en        -- kontrollü sözlük; istatistik bunun üstünden
 topic_stats            topic_id PK/FK, experience_count, avg_effectiveness, effective_pct,
                        top_side_effects(jsonb [{term_id,count}]), updated_at
 questions              id, topic_id FK NOT NULL, user_id FK, title, body, lang, status, created_at
