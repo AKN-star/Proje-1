@@ -7,6 +7,7 @@ import * as schema from "@/db/schema";
 import { seed } from "@/db/seed";
 import { topics, users, experiences } from "@/db/schema";
 import { getTopicBySlug, listTopics } from "./topics";
+import { castVote } from "@/lib/votes/vote";
 
 let client: PGlite;
 let db: PgliteDatabase<typeof schema>;
@@ -57,6 +58,12 @@ describe("listTopics", () => {
   it("eşleşme yoksa boş liste döner", async () => {
     const result = await listTopics(db, { q: "olmayan-ilac-xyz", locale: "tr" });
     expect(result).toEqual([]);
+  });
+
+  it("etken madde üzerinde arama yapar", async () => {
+    const result = await listTopics(db, { q: "parasetamol", locale: "tr" });
+    const slugs = result.map((t) => t.slug).sort();
+    expect(slugs).toEqual(["calpol", "parol"]);
   });
 });
 
@@ -120,6 +127,92 @@ describe("getTopicBySlug", () => {
     const listed = await listTopics(db, { locale: "tr" });
     const parolListItem = listed.find((t) => t.slug === "parol");
     expect(parolListItem?.experienceCount).toBe(2);
+  });
+});
+
+describe("getTopicBySlug — sıralama ve skor", () => {
+  it("sort='oy' skora göre azalan sıralar; skorlar doğru döner", async () => {
+    const parol = await db.query.topics.findFirst({
+      where: (t, { eq }) => eq(t.slug, "parol"),
+    });
+    const [author] = await db
+      .insert(users)
+      .values({ email: "author@example.com", username: "yazar1234" })
+      .returning();
+    const [voter1] = await db
+      .insert(users)
+      .values({ email: "voter1@example.com", username: "oyveren1" })
+      .returning();
+    const [voter2] = await db
+      .insert(users)
+      .values({ email: "voter2@example.com", username: "oyveren2" })
+      .returning();
+
+    const [expA] = await db
+      .insert(experiences)
+      .values({
+        topicId: parol!.id,
+        userId: author.id,
+        purpose: "baş ağrısı",
+        effectiveness: 4,
+        body: "eski ama az oylu",
+        status: "published",
+        createdAt: new Date(Date.now() - 5000),
+      })
+      .returning();
+    const [expB] = await db
+      .insert(experiences)
+      .values({
+        topicId: parol!.id,
+        userId: author.id,
+        purpose: "ateş",
+        effectiveness: 5,
+        body: "yeni ama çok oylu",
+        status: "published",
+        createdAt: new Date(),
+      })
+      .returning();
+
+    // expA: 1 oy; expB: 2 oy — sort='oy' ile expB üstte olmalı.
+    await castVote(db, voter1.id, "experience", expA.id, 1);
+    await castVote(db, voter1.id, "experience", expB.id, 1);
+    await castVote(db, voter2.id, "experience", expB.id, 1);
+
+    const yeniSirali = await getTopicBySlug(db, "parol", "tr", "yeni");
+    expect(yeniSirali?.experiences[0].id).toBe(expB.id);
+
+    const oySirali = await getTopicBySlug(db, "parol", "tr", "oy");
+    expect(oySirali?.experiences[0].id).toBe(expB.id);
+    expect(oySirali?.experiences[0].score).toBe(2);
+    expect(oySirali?.experiences[1].id).toBe(expA.id);
+    expect(oySirali?.experiences[1].score).toBe(1);
+  });
+
+  it("currentUserId geçilirse kullanıcının kendi oyu myVote'da döner", async () => {
+    const parol = await db.query.topics.findFirst({
+      where: (t, { eq }) => eq(t.slug, "parol"),
+    });
+    const [author] = await db
+      .insert(users)
+      .values({ email: "author2@example.com", username: "yazar5678" })
+      .returning();
+    const [exp] = await db
+      .insert(experiences)
+      .values({
+        topicId: parol!.id,
+        userId: author.id,
+        purpose: "baş ağrısı",
+        effectiveness: 4,
+        body: "deneyim",
+        status: "published",
+      })
+      .returning();
+
+    await castVote(db, author.id, "experience", exp.id, -1);
+
+    const result = await getTopicBySlug(db, "parol", "tr", "yeni", author.id);
+    expect(result?.experiences[0].myVote).toBe(-1);
+    expect(result?.experiences[0].score).toBe(-1);
   });
 });
 

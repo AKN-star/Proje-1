@@ -4,10 +4,19 @@ import { signIn } from "@/auth";
 async function sendMagicLinkAction(formData: FormData) {
   "use server";
   const email = String(formData.get("email") ?? "");
-  await signIn("email", { email, redirectTo: "/" });
+  const next = String(formData.get("next") ?? "");
+  // Açık redirect engeli: yalnız site içi yollar.
+  const redirectTo =
+    next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  await signIn("email", { email, redirectTo });
 }
 
-export default function GirisPage() {
+export default async function GirisPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next = "/" } = await searchParams;
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-4">
       <div className="space-y-2 text-center">
@@ -17,6 +26,7 @@ export default function GirisPage() {
         </p>
       </div>
       <form action={sendMagicLinkAction} className="flex flex-col gap-3">
+        <input type="hidden" name="next" value={next} />
         <input
           type="email"
           name="email"

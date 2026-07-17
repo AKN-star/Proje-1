@@ -14,6 +14,7 @@ import {
   topics,
   users,
 } from "@/db/schema";
+import { getScores } from "@/lib/votes/vote";
 
 export interface TopicListItem {
   id: string;
@@ -46,9 +47,16 @@ export async function listTopics(
 
   const whereClauses = [eq(topics.status, "active")];
   if (q) {
-    const pattern = `%${q}%`;
+    // LIKE jokerleri kullanıcı girdisinden kaçırılır (%%% tüm tabloyu
+    // döndürmesin); enjeksiyon yok (parametreli) ama semantik korunur.
+    const escaped = q.replace(/[\\%_]/g, "\\$&");
+    const pattern = `%${escaped}%`;
     whereClauses.push(
-      or(ilike(topics.canonicalName, pattern), ilike(topicI18n.name, pattern))!,
+      or(
+        ilike(topics.canonicalName, pattern),
+        ilike(topicI18n.name, pattern),
+        ilike(drugDetails.activeIngredient, pattern),
+      )!,
     );
   }
 
@@ -110,6 +118,8 @@ export interface ExperienceListItem {
   body: string;
   createdAt: Date;
   sideEffects: string[];
+  score: number;
+  myVote: 1 | -1 | null;
 }
 
 export interface TopicWithExperiences {
@@ -123,10 +133,14 @@ export interface TopicWithExperiences {
  * aktif değilse `null` döner. Deneyimi olmayan topic boş `experiences`
  * listesiyle döner.
  */
+export type TopicSort = "yeni" | "oy";
+
 export async function getTopicBySlug(
   db: Db,
   slug: string,
   locale = "tr",
+  sort: TopicSort = "yeni",
+  currentUserId?: string,
 ): Promise<TopicWithExperiences | null> {
   const [topicRow] = await db
     .select({
@@ -195,14 +209,29 @@ export async function getTopicBySlug(
     }
   }
 
-  return {
-    topic: topicRow,
-    experiences: experienceRows.map((row) => ({
+  const scores = await getScores(db, "experience", experienceIds, currentUserId);
+
+  let items: ExperienceListItem[] = experienceRows.map((row) => {
+    const scoreEntry = scores.get(row.id);
+    return {
       ...row,
       // Yazma eylemi onboarding (username) şartına bağlı; NULL yalnız
       // teorik durumda kalır ama tip daraltması için güvenli varsayılan.
       authorUsername: row.authorUsername ?? "anonim",
       sideEffects: sideEffectsByExperience.get(row.id) ?? [],
-    })),
+      score: scoreEntry?.score ?? 0,
+      myVote: scoreEntry?.myVote ?? null,
+    };
+  });
+
+  if (sort === "oy") {
+    // Skora göre azalan; eşitlikte createdAt zaten azalan sırada geldiği
+    // için sıralı kalır (stable sort).
+    items = items.slice().sort((a, b) => b.score - a.score);
+  }
+
+  return {
+    topic: topicRow,
+    experiences: items,
   };
 }

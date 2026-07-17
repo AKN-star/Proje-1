@@ -16,6 +16,7 @@ import { validateExperienceInput } from "@/lib/validation/experience";
 import { moderate } from "@/lib/ai/moderate";
 import { insertExperience, statusForVerdict } from "@/lib/experiences/create";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
+import { recalcTopicStats } from "@/lib/stats/topic-stats";
 
 const FIELD_ORDER = [
   "purpose",
@@ -89,6 +90,11 @@ export async function submitExperience(formData: FormData): Promise<void> {
 
   const status = statusForVerdict(moderation.verdict);
   await insertExperience(db, validation.data, session.user.id, topic.id, status);
+
+  // SAPMA KAYDI (spec T2): master plan aynı transaction'da recalc ister;
+  // neon-http driver transaction desteklemez → aynı istek içinde ardışık
+  // çağrı. Faz 7'de driver websocket'e geçerse transaction'a alınır.
+  await recalcTopicStats(db, topic.id);
 
   revalidatePath(`/baslik/${slug}`);
   redirect(`/baslik/${slug}`);

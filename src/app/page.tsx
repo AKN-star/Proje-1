@@ -38,7 +38,7 @@ export default async function Home({
           type="search"
           name="q"
           defaultValue={q ?? ""}
-          placeholder="İlaç, hastalık veya tedavi ara..."
+          placeholder="İlaç, etken madde veya hastalık ara..."
           aria-label="Ara"
         />
         <Button type="submit">Ara</Button>

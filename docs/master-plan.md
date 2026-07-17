@@ -54,7 +54,7 @@ experiences            id, topic_id FK NOT NULL, user_id FK NOT NULL, purpose(te
 experience_side_effects experience_id FK, term_id FK side_effect_terms  -- PK(experience_id, term_id)
 side_effect_terms      id, slug(unique), name_tr, name_en        -- kontrollü sözlük; istatistik bunun üstünden
 topic_stats            topic_id PK/FK, experience_count, avg_effectiveness, effective_pct,
-                       top_side_effects(jsonb [{term_id,count}]), updated_at
+                       top_side_effects(jsonb [{termId,count}]), updated_at
 questions              id, topic_id FK NOT NULL, user_id FK, title, body, lang, status, created_at
 answers                id, question_id FK NOT NULL, user_id FK, body, lang, status, created_at
 votes                  user_id + target_type('experience'|'answer') + target_id (unique bileşik),

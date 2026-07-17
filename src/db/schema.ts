@@ -6,8 +6,10 @@
 import {
   check,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
+  real,
   text,
   timestamp,
   uuid,
@@ -98,6 +100,42 @@ export const experiences = pgTable(
       "effectiveness_range",
       sql`${table.effectiveness} >= 1 AND ${table.effectiveness} <= 5`,
     ),
+  ],
+);
+
+/** İstatistik bloğunun tek kaynağı (kritik sözleşme #3): canlı sorgu
+ * değil, deneyim yazımıyla birlikte yeniden hesaplanan özet satırı. */
+export const topicStats = pgTable("topic_stats", {
+  topicId: uuid("topic_id")
+    .primaryKey()
+    .references(() => topics.id),
+  experienceCount: integer("experience_count").notNull().default(0),
+  avgEffectiveness: real("avg_effectiveness"),
+  effectivePct: integer("effective_pct"),
+  topSideEffects: jsonb("top_side_effects")
+    .$type<{ termId: string; count: number }[]>()
+    .notNull()
+    .default([]),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const votes = pgTable(
+  "votes",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    targetType: text("target_type")
+      .notNull()
+      .$type<"experience" | "answer">(),
+    targetId: uuid("target_id").notNull(),
+    value: integer("value").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.targetType, table.targetId] }),
+    check("vote_value", sql`${table.value} IN (1, -1)`),
   ],
 );
 

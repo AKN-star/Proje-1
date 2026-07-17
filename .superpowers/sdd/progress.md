@@ -7,7 +7,7 @@ davranışsal doğrulama → final review → merge → CLAUDE.md güncelle.
 |---|---|---|
 | 0 — Gün-0 altyapısı | kod tamam, merge bekliyor | Branch `faz-0-altyapi` GitHub'a push'landı (AKN-star/Proje-1). Yerel doğrulama yeşil (lint+typecheck+3 test). Bekleyen: CI koşumu görme, master'a merge. Neon/Vercel/Resend hesapları Faz 1'de bağlanacak (insan adımı, sahibi: kullanıcı). |
 | 1 — Yürüyen iskelet | kod tamam, merge bekliyor | Branch `faz-1-yuruyen-iskelet` (da788eb). T1-T5 + final review düzeltmeleri tamam: KVKK rızası + /hosgeldin takma ad onboarding'i, topicId server-side, purpose moderasyonu. lint+typecheck+53/53 test yeşil; canlı akış prod sunucuda doğrulandı (giriş→onboarding→deneyim→sayfada görünür). Bilinen kısıt: `next dev` çok işlemli olduğundan dosya tabanlı PGlite çökebiliyor — yerel e2e için `npm run build && npm start` (spec kapanış notları). Bekleyen insan adımları: PR'ları merge et (faz-0 #1, faz-1), Neon+Vercel hesapları bağla (canlı için), opsiyonel Resend. |
-| 2 — İstatistik + oy + arama | başlamadı | |
+| 2 — İstatistik + oy + arama | kod tamam, merge bekliyor | Branch `faz-2-istatistik-oy` (faz-1 üstüne). topic_stats+votes (migration 0003), recalcTopicStats action'a bağlı, castVote toggle (atomik), istatistik kartı + ?sirala=oy|yeni + oy butonları + çok alanlı arama (LIKE kaçışlı). 70/70 test; canlı doğrulandı (istatistik güncellenir, oy toggle, arama etken maddeyle bulur). Final review bulguları kapatıldı; kendi deneyimine oy bilinçli serbest (spec notu). PR faz-1 merge'ini bekliyor. |
 | 3 — AI moderasyon + admin | başlamadı | |
 | 4 — Soru/Cevap + başlık önerisi | başlamadı | |
 | 5 — Çok dillilik | başlamadı | |
