@@ -11,6 +11,7 @@ import { submitAnswer, voteAnswer } from "@/app/actions/qa";
 import { getFreshTranslation } from "@/lib/translations/cache";
 import { TranslateButton, TranslationBlock } from "@/components/translation";
 import { normalizeLocale, isLocale, type Locale } from "@/lib/locales";
+import { UUID_RE } from "@/lib/validate";
 import { cn } from "@/lib/utils";
 
 // Canlı DB verisi gösterir; build sırasında prerender edilmez (PGlite
@@ -45,6 +46,11 @@ export default async function SoruPage({
 }) {
   const { id } = await params;
   const { hata, cevir, dil, cevirHata } = await searchParams;
+
+  // uuid olmayan id sorguda PG hatasına (22P02) dönüşmesin — 404.
+  if (!UUID_RE.test(id)) {
+    notFound();
+  }
 
   const db = await getDb();
   const session = await auth();

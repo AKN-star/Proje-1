@@ -15,9 +15,7 @@ import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
 import { getOrCreateTranslation } from "@/lib/translations/cache";
 import { isLocale } from "@/lib/locales";
 import { appendQuery, safeInternalPath } from "@/lib/url";
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { UUID_RE } from "@/lib/validate";
 
 const TARGET_TYPES = ["experience", "question", "answer"] as const;
 type TargetType = (typeof TARGET_TYPES)[number];
