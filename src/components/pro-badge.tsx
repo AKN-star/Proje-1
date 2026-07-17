@@ -1,15 +1,15 @@
 /**
  * Doğrulanmış profesyonel rozeti (Faz 6 T3). Kullanıcı adının yanında
- * ✔ gösterir; proBadge boşsa hiçbir şey render etmez.
+ * ✔ gösterir; proBadge boşsa hiçbir şey render etmez. Rol etiketleri
+ * tek kaynaktan (CLAIMED_ROLE_LABELS) türetilir.
  */
-const BADGE_LABELS: Record<string, string> = {
-  doctor: "Doğrulanmış doktor",
-  pharmacist: "Doğrulanmış eczacı",
-};
+import { CLAIMED_ROLE_LABELS, isClaimedRole } from "@/lib/badges/requests";
 
 export function ProBadge({ proBadge }: { proBadge: string | null }) {
   if (!proBadge) return null;
-  const label = BADGE_LABELS[proBadge] ?? "Doğrulanmış sağlık profesyoneli";
+  const label = isClaimedRole(proBadge)
+    ? `Doğrulanmış ${CLAIMED_ROLE_LABELS[proBadge].toLocaleLowerCase("tr")}`
+    : "Doğrulanmış sağlık profesyoneli";
   return (
     <span
       title={label}

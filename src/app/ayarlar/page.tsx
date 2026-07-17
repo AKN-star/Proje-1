@@ -23,7 +23,10 @@ export default async function AyarlarPage({
   }
 
   const db = await getDb();
-  const profile = await getOnboardingProfile(db, session.user.id);
+  const [profile, badgeRequest] = await Promise.all([
+    getOnboardingProfile(db, session.user.id),
+    getLatestBadgeRequest(db, session.user.id),
+  ]);
   if (!isOnboarded(profile)) {
     redirect("/hosgeldin?next=%2Fayarlar");
   }
@@ -31,7 +34,10 @@ export default async function AyarlarPage({
   const { kaydedildi, rozet } = await searchParams;
 
   const currentLocale = normalizeLocale(profile?.locale);
-  const badgeRequest = await getLatestBadgeRequest(db, session.user.id);
+  // Gerçeklik kaynağı users.pro_badge; başvuru satırı yalnız
+  // 'inceleniyor' bilgisini verir (bkz. /rozet-basvuru notu).
+  const hasBadge = Boolean(profile?.proBadge);
+  const hasPending = !hasBadge && badgeRequest?.status === "pending";
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col gap-6 px-4 py-12">
@@ -84,13 +90,13 @@ export default async function AyarlarPage({
           <CardTitle className="text-base">Profesyonel rozet</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 text-sm">
-          {badgeRequest?.status === "approved" ? (
+          {hasBadge ? (
             <p>
               Rozetiniz onaylı{" "}
               <span className="text-sky-600 dark:text-sky-400">✔</span> —
               adınızın yanında görünüyor.
             </p>
-          ) : badgeRequest?.status === "pending" ? (
+          ) : hasPending ? (
             <p className="text-muted-foreground">Başvurunuz inceleniyor.</p>
           ) : (
             <>

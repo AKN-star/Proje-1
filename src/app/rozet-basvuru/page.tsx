@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
 import {
+  CLAIMED_ROLES,
+  CLAIMED_ROLE_LABELS,
   DOCUMENT_NOTE_MAX,
   INSTITUTION_MAX,
   getLatestBadgeRequest,
@@ -28,15 +30,21 @@ export default async function RozetBasvuruPage({
   }
 
   const db = await getDb();
-  const profile = await getOnboardingProfile(db, session.user.id);
+  const [profile, latest] = await Promise.all([
+    getOnboardingProfile(db, session.user.id),
+    getLatestBadgeRequest(db, session.user.id),
+  ]);
   if (!isOnboarded(profile)) {
     redirect("/hosgeldin?next=%2Frozet-basvuru");
   }
 
   const { hata } = await searchParams;
-  const latest = await getLatestBadgeRequest(db, session.user.id);
-  const hasPending = latest?.status === "pending";
-  const hasBadge = latest?.status === "approved";
+  // Gerçeklik kaynağı users.pro_badge (createBadgeRequest'in kontrol
+  // ettiği alan); başvuru satırı yalnız 'inceleniyor' durumunu belirler.
+  // SQL ile rozet geri alınsa bile form yeniden açılır.
+  const hasBadge = Boolean(profile?.proBadge);
+  const hasPending = !hasBadge && latest?.status === "pending";
+  const isBanned = Boolean(profile?.bannedAt);
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 px-4 py-12">
@@ -58,7 +66,11 @@ export default async function RozetBasvuruPage({
         </p>
       )}
 
-      {hasBadge ? (
+      {isBanned ? (
+        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
+          Hesabınız askıya alındığı için rozet başvurusu yapamazsınız.
+        </p>
+      ) : hasBadge ? (
         <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-400">
           Rozetiniz onaylı — adınızın yanında ✔ olarak görünüyor.
         </p>
@@ -79,8 +91,11 @@ export default async function RozetBasvuruPage({
                   Meslek
                 </label>
                 <select id="claimedRole" name="claimedRole" className={inputClass}>
-                  <option value="doctor">Doktor</option>
-                  <option value="pharmacist">Eczacı</option>
+                  {CLAIMED_ROLES.map((role) => (
+                    <option key={role} value={role}>
+                      {CLAIMED_ROLE_LABELS[role]}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">

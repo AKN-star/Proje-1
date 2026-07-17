@@ -37,8 +37,10 @@ const emailProvider: EmailConfig = {
 // Google OAuth (Faz 6): env yoksa provider hiç eklenmez — /giris'te
 // buton da görünmez (anahtarsız zarif düşüş). Hesap birleştirme
 // (allowDangerousEmailAccountLinking) bilinçle KAPALI (varsayılan):
-// aynı e-postalı magic-link hesabına Google'la girilemez, ayrı hesap
-// açılır — hesap ele geçirme riskine karşı.
+// aynı e-postayla daha önce magic-link hesabı açılmışsa Google girişi
+// OAuthAccountNotLinked ile reddedilir (users.email unique — ikinci
+// hesap açılamaz); kullanıcı /giris/hata sayfasında e-posta ile giriş
+// yapmaya yönlendirilir. Hesap ele geçirme riskine karşı bu tercih.
 export const googleEnabled = Boolean(
   process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET,
 );
@@ -57,5 +59,6 @@ export const {
   session: { strategy: "database" },
   pages: {
     verifyRequest: "/giris/gonderildi",
+    error: "/giris/hata",
   },
 });

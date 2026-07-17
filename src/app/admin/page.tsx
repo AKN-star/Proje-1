@@ -21,7 +21,10 @@ import {
   resolveReport,
   reviewBadge,
 } from "@/app/actions/admin";
-import { listPendingBadgeRequests } from "@/lib/badges/requests";
+import {
+  CLAIMED_ROLE_LABELS,
+  listPendingBadgeRequests,
+} from "@/lib/badges/requests";
 import { cn } from "@/lib/utils";
 
 // Canlı DB verisi gösterir; build sırasında prerender edilmez (topic
@@ -31,11 +34,6 @@ export const dynamic = "force-dynamic";
 const REPORT_REASON_LABELS: Record<string, string> = Object.fromEntries(
   REPORT_REASONS.map((r) => [r.value, r.label]),
 );
-
-const BADGE_ROLE_LABELS: Record<string, string> = {
-  doctor: "Doktor",
-  pharmacist: "Eczacı",
-};
 
 const TOPIC_TYPE_LABELS: Record<string, string> = {
   drug: "İlaç",
@@ -282,7 +280,7 @@ export default async function AdminPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <CardTitle className="text-base">@{request.username}</CardTitle>
                   <Badge variant="outline">
-                    {BADGE_ROLE_LABELS[request.claimedRole] ?? request.claimedRole}
+                    {CLAIMED_ROLE_LABELS[request.claimedRole]}
                   </Badge>
                 </div>
               </CardHeader>

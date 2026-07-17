@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { brand } from "@/config/brand";
 import { googleEnabled, signIn } from "@/auth";
 import { safeInternalPath } from "@/lib/url";
@@ -11,6 +12,11 @@ async function sendMagicLinkAction(formData: FormData) {
 
 async function googleSignInAction(formData: FormData) {
   "use server";
+  // Action endpoint'i buton gizliyken de var; provider yoksa el yapımı
+  // POST'lar ham Auth.js hatasına düşmesin.
+  if (!googleEnabled) {
+    redirect("/giris");
+  }
   const redirectTo = safeInternalPath(formData.get("next"));
   await signIn("google", { redirectTo });
 }
