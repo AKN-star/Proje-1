@@ -89,22 +89,20 @@ export async function importDrugRows(
   let inserted = 0;
   let skipped = 0;
 
+  // Mevcut slug'lar tek sorguda; on binlerce satırda satır başına
+  // SELECT round-trip'i ödenmez. Aynı CSV'de yinelenen ada karşı Set
+  // eklenen slug'larla da güncellenir.
+  const existingSlugs = new Set(
+    (await db.select({ slug: topics.slug }).from(topics)).map((r) => r.slug),
+  );
+
   for (const row of rows) {
     const slug = slugify(row.name);
-    if (!slug) {
+    if (!slug || existingSlugs.has(slug)) {
       skipped++;
       continue;
     }
-
-    const [existing] = await db
-      .select({ id: topics.id })
-      .from(topics)
-      .where(eq(topics.slug, slug))
-      .limit(1);
-    if (existing) {
-      skipped++;
-      continue;
-    }
+    existingSlugs.add(slug);
 
     if (!options.dryRun) {
       const [topic] = await db
@@ -135,13 +133,4 @@ export async function importDrugRows(
   }
 
   return { inserted, skipped };
-}
-
-/** dryRun raporunda kullanılmak üzere mevcut titck kayıt sayısı. */
-export async function countTitckDrugs(db: Db): Promise<number> {
-  const rows = await db
-    .select({ topicId: drugDetails.topicId })
-    .from(drugDetails)
-    .where(eq(drugDetails.source, "titck"));
-  return rows.length;
 }

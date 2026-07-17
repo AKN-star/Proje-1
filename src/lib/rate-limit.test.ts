@@ -112,7 +112,7 @@ describe("checkRateLimit", () => {
 
   it("topic kind'ı yalnız pending önerileri sayar", async () => {
     const userId = await createUser("u6@example.com");
-    const { max } = RATE_LIMITS.topic;
+    const max = RATE_LIMITS.topic.maxPending;
 
     for (let i = 0; i < max; i++) {
       await db.insert(topics).values({

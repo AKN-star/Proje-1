@@ -31,16 +31,26 @@ const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 const MINUTE = 60 * 1000;
 
-/** kind → pencere (ms) ve tavan; spec'teki tek eşleme burası. */
-export const RATE_LIMITS: Record<RateLimitKind, { windowMs: number; max: number }> = {
+/** kind → pencere (ms) ve tavan; spec'teki tek eşleme burası. `topic`
+ * pencereli DEĞİLDİR (topics'te created_at yok — sözleşme): aynı anda en
+ * fazla `maxPending` bekleyen öneri; onay/red pencereden düşürür. Tip bu
+ * farkı taşır ki config bir pencere vaat edip etmediğini yalan söylemesin. */
+export const RATE_LIMITS = {
   experience: { windowMs: HOUR, max: 5 },
   question: { windowMs: HOUR, max: 5 },
   answer: { windowMs: HOUR, max: 20 },
   report: { windowMs: HOUR, max: 10 },
-  topic: { windowMs: DAY, max: 3 },
+  topic: { maxPending: 3 },
   badge: { windowMs: DAY, max: 3 },
   translation: { windowMs: MINUTE, max: 30 },
-};
+} as const satisfies Record<
+  RateLimitKind,
+  { windowMs: number; max: number } | { maxPending: number }
+>;
+
+/** Limit aşımında sayfalarda gösterilen tek mesaj (5 kopya olmasın). */
+export const RATE_LIMIT_ERROR_MESSAGE =
+  "Çok sık işlem yaptınız; lütfen bir süre sonra tekrar deneyin.";
 
 /**
  * Pencere içindeki kayıt sayısı tavanın altındaysa true (izin) döner.
@@ -51,6 +61,15 @@ export async function checkRateLimit(
   userId: string,
   kind: RateLimitKind,
 ): Promise<boolean> {
+  if (kind === "topic") {
+    // Pencere yok: bekleyen öneri sayısı tavanı (bkz. RATE_LIMITS notu).
+    const [row] = await db
+      .select({ total: count() })
+      .from(topics)
+      .where(and(eq(topics.createdBy, userId), eq(topics.status, "pending")));
+    return row.total < RATE_LIMITS.topic.maxPending;
+  }
+
   const { windowMs, max } = RATE_LIMITS[kind];
   const since = new Date(Date.now() - windowMs);
 
@@ -85,17 +104,6 @@ export async function checkRateLimit(
         .select({ total: count() })
         .from(reports)
         .where(and(eq(reports.reporterId, userId), gt(reports.createdAt, since)));
-      total = row.total;
-      break;
-    }
-    case "topic": {
-      // topics tablosunda created_at yok (sözleşme) — kullanıcı önerileri
-      // pending statüsüyle sayılır; onaylanınca pencereden düşer. Kaba ama
-      // şemasız tek seçenek: aynı anda en fazla `max` bekleyen öneri.
-      const [row] = await db
-        .select({ total: count() })
-        .from(topics)
-        .where(and(eq(topics.createdBy, userId), eq(topics.status, "pending")));
       total = row.total;
       break;
     }
