@@ -50,6 +50,13 @@
       "when": 1784219333467,
       "tag": "0006_mighty_silver_sable",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784294987990,
+      "tag": "0007_nasty_gideon",
+      "breakpoints": true
     }
   ]
 }
