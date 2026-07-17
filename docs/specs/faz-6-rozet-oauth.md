@@ -75,3 +75,27 @@ W3: [T3] (T2'yi tüketir).
 lint+typecheck+vitest yeşil; CI yeşil; canlı: başvuru → admin kuyruğunda
 görünür → onay → kartta ✔; anahtarsız ortamda Google butonu görünmez;
 final review kapandı; progress.md güncel.
+
+## Kapanış notları
+- Final review (8 açı) 10 bulgu: reviewBadgeRequest atomikleştirildi
+  (koşullu UPDATE ... WHERE status='pending' + CASE rol — eşzamanlı
+  onay/red ve admin:grant yarışları kapandı); rozet durumu sayfalarda
+  users.pro_badge'ten okunur (son başvuru satırı yalnız 'inceleniyor'
+  bilgisi verir — SQL ile rozet geri alınınca form yeniden açılır);
+  banlı kullanıcı formu yerine açık mesaj görür; googleSignInAction
+  provider yokken redirect eder; /giris/hata sayfası eklendi
+  (OAuthAccountNotLinked açıklaması — auth.ts notu); Resend fetch tek
+  yardımcıda (postResendEmail); admin.ts paylaşılan UUID_RE'ye geçti;
+  rol etiketleri tek kaynakta (CLAIMED_ROLE_LABELS).
+- Bilinen kabul edilen sınırlar: createBadgeRequest'teki bekleyen-tekrar
+  guard'ı select-sonra-insert (çift tık iki pending satır üretebilir;
+  zararsız — iki inceleme de idempotent, unique index sözleşme değişikliği
+  gerektirirdi). Kullanıcı satırı silinmiş başvuruda approve true döner
+  (silme yolu yok, teorik). requireOnboardedUser guard'ı çıkarma ve test
+  PGlite kurulum tekrarı Faz 7 temizliğine bırakıldı.
+- SAPMA: T2 commit'i 465 satır, T3 commit'i 292 satır (200 yasası;
+  T2'nin 191'i test). Review düzeltmeleri iki commit'te <200 tutuldu.
+- Canlı smoke (anahtarsız): /giris'te Google butonu yok, /rozet-basvuru
+  girişsize 307→/giris?next=, /giris/hata?error=OAuthAccountNotLinked
+  açıklayıcı metin, /admin anonime 404. Uçtan uca (Google girişi + rozet
+  onayı + Resend maili) Vercel'de anahtarlarla doğrulanacak.
