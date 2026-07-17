@@ -12,11 +12,10 @@ import { getDb } from "@/db";
 import type { Db } from "@/db";
 import { experiences, reports, topics, users } from "@/db/schema";
 import { requireModerator, type ModeratorActor } from "@/lib/admin/guard";
+import { reviewBadgeRequest } from "@/lib/badges/requests";
 import { logModeration } from "@/lib/moderation/log";
 import { recalcTopicStats } from "@/lib/stats/topic-stats";
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { UUID_RE } from "@/lib/validate";
 
 async function requireActor(db: Db): Promise<ModeratorActor> {
   const session = await auth();
@@ -230,6 +229,26 @@ export async function rejectTopic(formData: FormData): Promise<void> {
     actorType: "user",
     actorId: actor.id,
   });
+
+  revalidatePath("/admin");
+  redirect("/admin");
+}
+
+/**
+ * Bekleyen bir rozet başvurusunu sonuçlandırır (Faz 6 T3). Onay/red
+ * mantığı çekirdekte (reviewBadgeRequest); yalnız pending kayda etki eder.
+ */
+export async function reviewBadge(formData: FormData): Promise<void> {
+  const db = await getDb();
+  const actor = await requireActor(db);
+
+  const requestId = String(formData.get("requestId") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  if (!UUID_RE.test(requestId) || (decision !== "approve" && decision !== "reject")) {
+    redirect("/admin");
+  }
+
+  await reviewBadgeRequest(db, requestId, actor.id, decision);
 
   revalidatePath("/admin");
   redirect("/admin");

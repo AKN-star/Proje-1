@@ -10,6 +10,7 @@ import { MedicalDisclaimer } from "@/components/medical-disclaimer";
 import { submitAnswer, voteAnswer } from "@/app/actions/qa";
 import { getFreshTranslation } from "@/lib/translations/cache";
 import { TranslateButton, TranslationBlock } from "@/components/translation";
+import { ProBadge } from "@/components/pro-badge";
 import { normalizeLocale, isLocale, type Locale } from "@/lib/locales";
 import { UUID_RE } from "@/lib/validate";
 import { cn } from "@/lib/utils";
@@ -140,7 +141,10 @@ export default async function SoruPage({
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">{question.title}</h1>
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-          <span>@{question.authorUsername}</span>
+          <span>
+            @{question.authorUsername}
+            <ProBadge proBadge={question.authorProBadge} />
+          </span>
           <span>{formatDate(question.createdAt)}</span>
         </div>
         {question.body && (
@@ -196,7 +200,10 @@ export default async function SoruPage({
             <Card key={answer.id}>
               <CardHeader>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <CardTitle className="text-base">@{answer.authorUsername}</CardTitle>
+                  <CardTitle className="text-base">
+                    @{answer.authorUsername}
+                    <ProBadge proBadge={answer.authorProBadge} />
+                  </CardTitle>
                   <span className="text-sm text-muted-foreground">
                     {formatDate(answer.createdAt)}
                   </span>

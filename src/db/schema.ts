@@ -250,6 +250,27 @@ export const moderationLog = pgTable("moderation_log", {
     .defaultNow(),
 });
 
+/** Profesyonel rozet başvuruları (Faz 6). Belge yükleme yok — beyan
+ * (document_note); onay users.pro_badge + role'e yansır. */
+export const badgeRequests = pgTable("badge_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  claimedRole: text("claimed_role").notNull().$type<"doctor" | "pharmacist">(),
+  institution: text("institution").notNull(),
+  documentNote: text("document_note").notNull(),
+  status: text("status")
+    .notNull()
+    .default("pending")
+    .$type<"pending" | "approved" | "rejected">(),
+  reviewedBy: uuid("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const experienceSideEffects = pgTable(
   "experience_side_effects",
   {
