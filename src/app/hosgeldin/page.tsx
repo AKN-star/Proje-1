@@ -81,7 +81,11 @@ export default async function HosgeldinPage({
             Paylaşacağım ilaç/tedavi deneyimlerinin sağlık verisi içerdiğini
             biliyor, bu verilerin {brand.name} üzerinde takma adımla
             yayınlanması ve hizmetin sunulması için işlenmesine açık rıza
-            veriyorum. (Aydınlatma metni yayına kadar eklenecektir.)
+            veriyorum. (
+            <a href="/kvkk" className="underline" target="_blank">
+              Aydınlatma metni
+            </a>
+            )
           </span>
         </label>
         <Button type="submit">Devam et</Button>
