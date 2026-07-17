@@ -126,6 +126,7 @@ export interface QuestionDetail {
   id: string;
   title: string;
   body: string | null;
+  lang: string;
   authorUsername: string;
   createdAt: Date;
   topicId: string;
@@ -136,6 +137,7 @@ export interface QuestionDetail {
 export interface AnswerListItem {
   id: string;
   body: string;
+  lang: string;
   authorUsername: string;
   createdAt: Date;
   score: number;
@@ -162,6 +164,7 @@ export async function getQuestion(
       id: questions.id,
       title: questions.title,
       body: questions.body,
+      lang: questions.lang,
       authorUsername: users.username,
       createdAt: questions.createdAt,
       topicId: questions.topicId,
@@ -187,6 +190,7 @@ export async function getQuestion(
     .select({
       id: answers.id,
       body: answers.body,
+      lang: answers.lang,
       authorUsername: users.username,
       createdAt: answers.createdAt,
     })

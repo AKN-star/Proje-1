@@ -19,6 +19,7 @@ export interface OnboardingProfile {
   username: string | null;
   kvkkConsentAt: Date | null;
   bannedAt: Date | null;
+  locale: string;
 }
 
 /** Yazma eylemleri öncesi kontrol edilen profil alanları. */
@@ -31,6 +32,7 @@ export async function getOnboardingProfile(
       username: users.username,
       kvkkConsentAt: users.kvkkConsentAt,
       bannedAt: users.bannedAt,
+      locale: users.locale,
     })
     .from(users)
     .where(eq(users.id, userId))

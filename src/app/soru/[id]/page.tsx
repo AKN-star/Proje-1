@@ -8,6 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { MedicalDisclaimer } from "@/components/medical-disclaimer";
 import { submitAnswer, voteAnswer } from "@/app/actions/qa";
+import { getFreshTranslation } from "@/lib/translations/cache";
+import { TranslateButton, TranslationBlock } from "@/components/translation";
+import { normalizeLocale, isLocale, type Locale } from "@/lib/locales";
+import { UUID_RE } from "@/lib/validate";
 import { cn } from "@/lib/utils";
 
 // Canlı DB verisi gösterir; build sırasında prerender edilmez (PGlite
@@ -33,10 +37,20 @@ export default async function SoruPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ hata?: string }>;
+  searchParams: Promise<{
+    hata?: string;
+    cevir?: string;
+    dil?: string;
+    cevirHata?: string;
+  }>;
 }) {
   const { id } = await params;
-  const { hata } = await searchParams;
+  const { hata, cevir, dil, cevirHata } = await searchParams;
+
+  // uuid olmayan id sorguda PG hatasına (22P02) dönüşmesin — 404.
+  if (!UUID_RE.test(id)) {
+    notFound();
+  }
 
   const db = await getDb();
   const session = await auth();
@@ -48,11 +62,70 @@ export default async function SoruPage({
 
   const { question, answers } = result;
 
+  // Çevir butonu yalnız action'ın kabul edeceği kullanıcıya gösterilir
+  // (girişli + onboarded + banlı değil).
   let onboarded = false;
+  let userLocale: Locale | null = null;
   if (session?.user) {
     const profile = await getOnboardingProfile(db, session.user.id);
     onboarded = isOnboarded(profile);
+    if (onboarded && !profile?.bannedAt) {
+      userLocale = normalizeLocale(profile?.locale);
+    }
   }
+
+  // hata tek seferlik flash — returnPath'e taşınmaz.
+  const returnPath = `/soru/${id}`;
+
+  const [cevirType, cevirId] = cevir ? cevir.split(":") : [undefined, undefined];
+  const cevirLocale = dil && isLocale(dil) ? dil : undefined;
+
+  // Çeviriler yalnız sayfadaki gerçek satırlar üstünden ve hash güncelse
+  // okunur; soru bloğu ancak tüm alanları (başlık + varsa gövde)
+  // çevrilmişse gösterilir — yarım çeviri tam gibi sunulmaz.
+  const wantQuestion =
+    cevirType === "question" && cevirId === question.id && cevirLocale
+      ? cevirLocale
+      : undefined;
+  const [questionTitleTr, questionBodyTr] = wantQuestion
+    ? await Promise.all([
+        getFreshTranslation(db, {
+          targetType: "question",
+          targetId: question.id,
+          field: "title",
+          locale: wantQuestion,
+          sourceText: question.title,
+        }),
+        question.body
+          ? getFreshTranslation(db, {
+              targetType: "question",
+              targetId: question.id,
+              field: "body",
+              locale: wantQuestion,
+              sourceText: question.body,
+            })
+          : Promise.resolve(null),
+      ])
+    : [null, null];
+  const questionTranslation =
+    questionTitleTr && (!question.body || questionBodyTr)
+      ? { title: questionTitleTr, body: questionBodyTr }
+      : null;
+
+  const cevirAnswer =
+    cevirType === "answer" && cevirId
+      ? answers.find((a) => a.id === cevirId)
+      : undefined;
+  const translatedAnswerBody =
+    cevirAnswer && cevirLocale
+      ? await getFreshTranslation(db, {
+          targetType: "answer",
+          targetId: cevirAnswer.id,
+          field: "body",
+          locale: cevirLocale,
+          sourceText: cevirAnswer.body,
+        })
+      : null;
 
   const errorMessage = hata ? ERROR_MESSAGES[hata] ?? ERROR_MESSAGES._root : null;
 
@@ -73,6 +146,25 @@ export default async function SoruPage({
         {question.body && (
           <p className="mt-2 whitespace-pre-wrap text-sm">{question.body}</p>
         )}
+
+        {userLocale && question.lang !== userLocale && (
+          <TranslateButton
+            targetType="question"
+            targetId={question.id}
+            locale={userLocale}
+            returnPath={returnPath}
+            className="mt-2"
+          />
+        )}
+
+        {questionTranslation && wantQuestion && (
+          <TranslationBlock locale={wantQuestion} className="mt-2">
+            <p className="font-medium">{questionTranslation.title}</p>
+            {questionTranslation.body && (
+              <p className="whitespace-pre-wrap">{questionTranslation.body}</p>
+            )}
+          </TranslationBlock>
+        )}
       </div>
 
       <MedicalDisclaimer />
@@ -83,6 +175,15 @@ export default async function SoruPage({
           className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive"
         >
           {errorMessage}
+        </p>
+      )}
+
+      {cevirHata === "1" && (
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive"
+        >
+          Çeviri oluşturulamadı, lütfen tekrar deneyin.
         </p>
       )}
 
@@ -103,6 +204,24 @@ export default async function SoruPage({
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
                 <p className="whitespace-pre-wrap text-sm">{answer.body}</p>
+
+                {userLocale && answer.lang !== userLocale && (
+                  <TranslateButton
+                    targetType="answer"
+                    targetId={answer.id}
+                    locale={userLocale}
+                    returnPath={returnPath}
+                  />
+                )}
+
+                {cevirAnswer?.id === answer.id &&
+                  cevirLocale &&
+                  translatedAnswerBody && (
+                    <TranslationBlock locale={cevirLocale}>
+                      <p className="whitespace-pre-wrap">{translatedAnswerBody}</p>
+                    </TranslationBlock>
+                  )}
+
                 <div className="flex items-center gap-1 text-sm">
                   <form action={voteAnswer}>
                     <input type="hidden" name="answerId" value={answer.id} />

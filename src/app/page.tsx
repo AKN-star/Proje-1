@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { auth } from "@/auth";
 import { brand } from "@/config/brand";
 import { getDb } from "@/db";
 import { listTopics } from "@/lib/queries/topics";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 // Canlı DB verisi gösterir; build sırasında prerender edilmez (PGlite
 // build worker'larında paralel açılamaz, veri de istekte taze olmalı).
@@ -24,10 +25,19 @@ export default async function Home({
 }) {
   const { q } = await searchParams;
   const db = await getDb();
+  const session = await auth();
   const topicList = await listTopics(db, { q, locale: "tr" });
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-6 py-12">
+      {session?.user && (
+        <div className="flex justify-end">
+          <Link href="/ayarlar" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            Ayarlar
+          </Link>
+        </div>
+      )}
+
       <div className="flex flex-col gap-2 text-center">
         <h1 className="text-4xl font-semibold tracking-tight">{brand.name}</h1>
         <p className="text-muted-foreground">{brand.tagline.tr}</p>

@@ -5,6 +5,7 @@ import { brand } from "@/config/brand";
 import { generateUsername } from "@/lib/auth/username";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
 import { submitOnboarding } from "@/app/actions/onboarding";
+import { safeInternalPath } from "@/lib/url";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -32,7 +33,7 @@ export default async function HosgeldinPage({
   const db = await getDb();
   const profile = await getOnboardingProfile(db, session.user.id);
   if (isOnboarded(profile)) {
-    redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/");
+    redirect(safeInternalPath(next));
   }
 
   const suggestion =
