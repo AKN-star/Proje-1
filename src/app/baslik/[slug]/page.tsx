@@ -17,6 +17,7 @@ import { REPORT_REASONS } from "@/lib/reports/report";
 import { listQuestions } from "@/lib/qa/questions";
 import { getFreshTranslation } from "@/lib/translations/cache";
 import { TranslateButton, TranslationBlock } from "@/components/translation";
+import { ProBadge } from "@/components/pro-badge";
 import { normalizeLocale, isLocale, type Locale } from "@/lib/locales";
 import { buildReturnPath } from "@/lib/url";
 import { cn } from "@/lib/utils";
@@ -229,6 +230,7 @@ export default async function TopicPage({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <CardTitle className="text-base">
                     @{experience.authorUsername}
+                    <ProBadge proBadge={experience.authorProBadge} />
                   </CardTitle>
                   <span className="text-sm text-muted-foreground">
                     {formatDate(experience.createdAt)}

@@ -19,7 +19,9 @@ import {
   rejectTopic,
   removeExperience,
   resolveReport,
+  reviewBadge,
 } from "@/app/actions/admin";
+import { listPendingBadgeRequests } from "@/lib/badges/requests";
 import { cn } from "@/lib/utils";
 
 // Canlı DB verisi gösterir; build sırasında prerender edilmez (topic
@@ -29,6 +31,11 @@ export const dynamic = "force-dynamic";
 const REPORT_REASON_LABELS: Record<string, string> = Object.fromEntries(
   REPORT_REASONS.map((r) => [r.value, r.label]),
 );
+
+const BADGE_ROLE_LABELS: Record<string, string> = {
+  doctor: "Doktor",
+  pharmacist: "Eczacı",
+};
 
 const TOPIC_TYPE_LABELS: Record<string, string> = {
   drug: "İlaç",
@@ -58,10 +65,11 @@ export default async function AdminPage() {
     notFound();
   }
 
-  const [queue, openReports, pendingTopics] = await Promise.all([
+  const [queue, openReports, pendingTopics, pendingBadges] = await Promise.all([
     listModerationQueue(db),
     listOpenReports(db),
     listPendingTopicProposals(db),
+    listPendingBadgeRequests(db),
   ]);
 
   return (
@@ -249,6 +257,57 @@ export default async function AdminPage() {
                   </form>
                   <form action={rejectTopic}>
                     <input type="hidden" name="topicId" value={proposal.id} />
+                    <button
+                      type="submit"
+                      className={cn(buttonVariants({ variant: "destructive", size: "sm" }))}
+                    >
+                      Reddet
+                    </button>
+                  </form>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-xl font-semibold">Rozet başvuruları</h2>
+        {pendingBadges.length === 0 ? (
+          <p className="text-muted-foreground">Bekleyen başvuru yok.</p>
+        ) : (
+          pendingBadges.map((request) => (
+            <Card key={request.id}>
+              <CardHeader>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <CardTitle className="text-base">@{request.username}</CardTitle>
+                  <Badge variant="outline">
+                    {BADGE_ROLE_LABELS[request.claimedRole] ?? request.claimedRole}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <p className="text-sm text-muted-foreground">
+                  {request.email} · {formatDate(request.createdAt)}
+                </p>
+                <p className="text-sm">
+                  <span className="font-medium">Kurum:</span> {request.institution}
+                </p>
+                <p className="whitespace-pre-wrap text-sm">{request.documentNote}</p>
+                <div className="flex flex-wrap gap-2">
+                  <form action={reviewBadge}>
+                    <input type="hidden" name="requestId" value={request.id} />
+                    <input type="hidden" name="decision" value="approve" />
+                    <button
+                      type="submit"
+                      className={cn(buttonVariants({ variant: "default", size: "sm" }))}
+                    >
+                      Onayla
+                    </button>
+                  </form>
+                  <form action={reviewBadge}>
+                    <input type="hidden" name="requestId" value={request.id} />
+                    <input type="hidden" name="decision" value="reject" />
                     <button
                       type="submit"
                       className={cn(buttonVariants({ variant: "destructive", size: "sm" }))}

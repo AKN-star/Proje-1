@@ -112,6 +112,7 @@ export interface TopicDetail {
 export interface ExperienceListItem {
   id: string;
   authorUsername: string;
+  authorProBadge: string | null;
   purpose: string;
   durationDays: number | null;
   effectiveness: number;
@@ -170,6 +171,7 @@ export async function getTopicBySlug(
     .select({
       id: experiences.id,
       authorUsername: users.username,
+      authorProBadge: users.proBadge,
       purpose: experiences.purpose,
       durationDays: experiences.durationDays,
       effectiveness: experiences.effectiveness,

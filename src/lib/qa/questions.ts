@@ -128,6 +128,7 @@ export interface QuestionDetail {
   body: string | null;
   lang: string;
   authorUsername: string;
+  authorProBadge: string | null;
   createdAt: Date;
   topicId: string;
   topicSlug: string;
@@ -139,6 +140,7 @@ export interface AnswerListItem {
   body: string;
   lang: string;
   authorUsername: string;
+  authorProBadge: string | null;
   createdAt: Date;
   score: number;
   myVote: 1 | -1 | null;
@@ -166,6 +168,7 @@ export async function getQuestion(
       body: questions.body,
       lang: questions.lang,
       authorUsername: users.username,
+      authorProBadge: users.proBadge,
       createdAt: questions.createdAt,
       topicId: questions.topicId,
       topicSlug: topics.slug,
@@ -192,6 +195,7 @@ export async function getQuestion(
       body: answers.body,
       lang: answers.lang,
       authorUsername: users.username,
+      authorProBadge: users.proBadge,
       createdAt: answers.createdAt,
     })
     .from(answers)
