@@ -32,6 +32,29 @@ const TYPE_LABELS: Record<string, string> = {
   treatment: "Tedavi",
 };
 
+/** SEO (Faz 7 T2): başlık sayfası title/description + OG. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const db = await getDb();
+  const result = await getTopicBySlug(db, slug);
+  if (!result) return {};
+
+  const name = result.topic.name ?? result.topic.canonicalName;
+  const title = `${name} kullanıcı deneyimleri`;
+  const description =
+    result.topic.summary ??
+    `${name} hakkında gerçek kullanıcı deneyimleri, etki puanları ve yan etki istatistikleri.`;
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: "article" },
+  };
+}
+
 function formatDate(date: Date): string {
   return new Intl.DateTimeFormat("tr-TR", {
     day: "numeric",

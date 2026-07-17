@@ -34,6 +34,23 @@ function formatDate(date: Date): string {
   }).format(date);
 }
 
+/** SEO (Faz 7 T2): soru başlığı title/description. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  if (!UUID_RE.test(id)) return {};
+  const db = await getDb();
+  const result = await getQuestion(db, id);
+  if (!result) return {};
+  return {
+    title: result.question.title,
+    description: `${result.question.topicName} hakkında soru: ${result.question.title}`,
+  };
+}
+
 export default async function SoruPage({
   params,
   searchParams,
