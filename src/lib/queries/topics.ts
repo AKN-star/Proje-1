@@ -34,9 +34,32 @@ export interface ListTopicsOptions {
 }
 
 /**
+ * Arama ilgililik puanı: tam eşleşme (0) > baştan eşleşme (1) >
+ * içerir (2). Ad, kanonik ad ve etken maddenin en iyisi alınır;
+ * karşılaştırma Türkçe küçük harfe göredir.
+ */
+export function searchRank(
+  q: string,
+  fields: (string | null)[],
+): number {
+  const needle = q.toLocaleLowerCase("tr-TR");
+  let best = 3;
+  for (const field of fields) {
+    if (!field) continue;
+    const value = field.toLocaleLowerCase("tr-TR");
+    if (value === needle) return 0;
+    if (value.startsWith(needle)) best = Math.min(best, 1);
+    else if (value.includes(needle)) best = Math.min(best, 2);
+  }
+  return best;
+}
+
+/**
  * Aktif topic'leri, seçilen locale'deki i18n adıyla ve yayınlanmış
- * deneyim sayısıyla birlikte döner. `q` verilirse canonical_name veya
- * i18n adı üzerinde (case-insensitive) `ilike` araması yapılır.
+ * deneyim sayısıyla birlikte döner. `q` verilirse canonical_name, i18n
+ * adı veya etken madde üzerinde (case-insensitive) `ilike` araması
+ * yapılır ve sonuçlar ilgililiğe göre sıralanır (searchRank; eşitlikte
+ * alfabetik).
  */
 export async function listTopics(
   db: Db,
@@ -91,10 +114,23 @@ export async function listTopics(
     )
     .orderBy(asc(topics.canonicalName));
 
-  return rows.map((row) => ({
+  const items = rows.map((row) => ({
     ...row,
     experienceCount: Number(row.experienceCount),
   }));
+
+  if (q) {
+    // SQL alfabetik getirdi; ilgililik JS'te (sonuç kümesi zaten
+    // filtrelenmiş ve küçük). Eşit puanda alfabetik sıra korunur
+    // (stable sort).
+    items.sort(
+      (a, b) =>
+        searchRank(q, [a.name, a.canonicalName, a.activeIngredient]) -
+        searchRank(q, [b.name, b.canonicalName, b.activeIngredient]),
+    );
+  }
+
+  return items;
 }
 
 /** generateMetadata için tek satırlık hafif sorgu — deneyim/skor
