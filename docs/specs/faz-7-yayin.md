@@ -87,3 +87,29 @@ header'ı hâlâ dönüyor, /robots.txt disallow, /sitemap.xml topic'leri
 listeliyor, /kvkk ve /kullanim-sartlari taslak bandıyla açılıyor, limit
 aşımı banner'ı görünüyor; final review kapandı; progress.md güncel;
 Sentry/Playwright kapıları ve TİTCK lisans notu kayıtlı.
+
+## Kapanış notları
+- Final review (8 açı) 10 bulgu: generateMetadata ağır sorgu yerine
+  hafif getTopicMeta/getQuestionMeta; siteUrl'e
+  VERCEL_PROJECT_PRODUCTION_URL fallback'i (SITE_URL unutulursa
+  localhost sitemap yayınlanmaz); next.config isLaunched'ı tek
+  kaynaktan okur; RATE_LIMITS.topic dürüst tipe ({maxPending}) ayrıldı;
+  limit mesajı RATE_LIMIT_ERROR_MESSAGE tek kaynak; report/qa UUID_RE
+  paylaşılana geçti; titck import'ta slug'lar tek SELECT'le Set'e
+  (script dahil), ölü countTitckDrugs silindi. Neon sql.query dönüş
+  şekli doğrulandı (v1.1.0 satır dizisi — aday çürütüldü).
+- Bilinen kabul edilen sınırlar: COUNT tabanlı limit kasıtlı paralel
+  istekte tavanı aşabilir ve moderasyonda bloklanan/başarısız çeviri
+  denemelerini saymaz (deneme kaydı tablosu = sözleşme değişikliği →
+  insana kuyruklandı); (user_id, created_at) bileşik index'leri tablolar
+  büyüyünce migration ister (insan adımı); parseCsv hücre içi yeni
+  satırı desteklemez (dry-run ile insan kontrolü); PGlite test kurulum
+  bloğu 5+ dosyada kopya (ayrı cleanup işi).
+- SAPMA: T1 commit'i 323 satır (200 yasası; 152'si test) — sonraki
+  commit'ler bölündü.
+- Canlı smoke (anahtarsız): noindex header dönüyor, robots disallow,
+  sitemap 24 URL, /kvkk-/kullanim-sartlari taslak bandıyla 200, başlık
+  sayfası title template'i doğru. Launch adımı: Vercel'de SITE_LAUNCHED=1
+  (+ SITE_URL) → header/robots/metadata birlikte açılır.
+- KAPILAR: Sentry SDK ve Playwright bağımlılık onayı bekliyor
+  (→ Faz 7.1 / 7.2); TİTCK verisi lisans teyidi + CSV insan adımı.
