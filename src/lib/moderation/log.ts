@@ -9,7 +9,7 @@ import { moderationLog } from "@/db/schema";
 export interface LogModerationInput {
   targetType: string;
   targetId: string;
-  action: "ai_flag" | "ai_block" | "ai_timeout" | "mod_remove" | "mod_restore";
+  action: "ai_flag" | "ai_block" | "ai_timeout" | "mod_remove" | "mod_restore" | "mod_ban";
   detail?: { reasons?: string[]; note?: string };
   actorType: "ai" | "user";
   actorId?: string;

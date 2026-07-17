@@ -13,6 +13,7 @@ import { MedicalDisclaimer } from "@/components/medical-disclaimer";
 import { voteExperience } from "@/app/actions/vote";
 import { reportExperience } from "@/app/actions/report";
 import { REPORT_REASONS } from "@/lib/reports/report";
+import { listQuestions } from "@/lib/qa/questions";
 import { cn } from "@/lib/utils";
 
 // Canlı DB verisi gösterir; build sırasında prerender edilmez (PGlite
@@ -66,6 +67,8 @@ export default async function TopicPage({
   const detailParts = [topic.activeIngredient, topic.form, topic.strength].filter(
     Boolean,
   );
+
+  const questionsList = await listQuestions(db, topic.id);
 
   const stats = await getTopicStats(db, topic.id);
   let topSideEffectNames: string[] = [];
@@ -274,6 +277,48 @@ export default async function TopicPage({
                       </button>
                     </form>
                   </details>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-xl font-semibold">Sorular</h2>
+          <Link
+            href={
+              session?.user
+                ? `/baslik/${topic.slug}/soru-sor`
+                : `/giris?next=${encodeURIComponent(`/baslik/${topic.slug}/soru-sor`)}`
+            }
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            Soru sor
+          </Link>
+        </div>
+        {questionsList.length === 0 ? (
+          <p className="text-muted-foreground">Henüz soru sorulmamış.</p>
+        ) : (
+          questionsList.map((question) => (
+            <Card key={question.id}>
+              <CardHeader>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <CardTitle className="text-base">
+                    <Link href={`/soru/${question.id}`} className="hover:underline">
+                      {question.title}
+                    </Link>
+                  </CardTitle>
+                  <span className="text-sm text-muted-foreground">
+                    {formatDate(question.createdAt)}
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                  <span>@{question.authorUsername}</span>
+                  <span>{question.answerCount} yanıt</span>
                 </div>
               </CardContent>
             </Card>

@@ -142,6 +142,45 @@ export const votes = pgTable(
   ],
 );
 
+export const questions = pgTable("questions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  topicId: uuid("topic_id")
+    .notNull()
+    .references(() => topics.id),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  title: text("title").notNull(),
+  body: text("body"),
+  lang: text("lang").notNull().default("tr"),
+  status: text("status")
+    .notNull()
+    .default("published")
+    .$type<"published" | "pending" | "flagged" | "removed">(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const answers = pgTable("answers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  questionId: uuid("question_id")
+    .notNull()
+    .references(() => questions.id),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  body: text("body").notNull(),
+  lang: text("lang").notNull().default("tr"),
+  status: text("status")
+    .notNull()
+    .default("published")
+    .$type<"published" | "pending" | "flagged" | "removed">(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const reports = pgTable(
   "reports",
   {
@@ -175,7 +214,9 @@ export const moderationLog = pgTable("moderation_log", {
   targetId: uuid("target_id").notNull(),
   action: text("action")
     .notNull()
-    .$type<"ai_flag" | "ai_block" | "ai_timeout" | "mod_remove" | "mod_restore">(),
+    .$type<
+      "ai_flag" | "ai_block" | "ai_timeout" | "mod_remove" | "mod_restore" | "mod_ban"
+    >(),
   detail: jsonb("detail").$type<{ reasons?: string[]; note?: string }>(),
   actorType: text("actor_type").notNull().$type<"ai" | "user">(),
   actorId: uuid("actor_id").references(() => users.id),

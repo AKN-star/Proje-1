@@ -61,7 +61,7 @@ votes                  user_id + target_type('experience'|'answer') + target_id 
                        value CHECK(-1|+1)
 reports                id, reporter_id FK, target_type, target_id, reason(enum), unique(reporter_id, target_type, target_id),
                        status('open'|'resolved'), created_at
-moderation_log         id, target_type, target_id, action('ai_flag'|'ai_block'|'ai_timeout'|'mod_remove'|'mod_restore'),
+moderation_log         id, target_type, target_id, action('ai_flag'|'ai_block'|'ai_timeout'|'mod_remove'|'mod_restore'|'mod_ban'),
                        detail(jsonb: AI gerekçesi), actor_type('ai'|'user'), actor_id(FK users|null), created_at
 translations           target_type, target_id, field, locale, text, model, source_hash, created_at
                        -- unique(target_type, target_id, field, locale); source_hash bayatlık kontrolü

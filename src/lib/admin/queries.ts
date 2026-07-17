@@ -7,6 +7,8 @@ import { alias } from "drizzle-orm/pg-core";
 import type { Db } from "@/db";
 import { experiences, moderationLog, reports, topicI18n, topics, users } from "@/db/schema";
 
+const proposers = alias(users, "proposers");
+
 const reporters = alias(users, "reporters");
 
 const AI_LOG_ACTIONS = ["ai_flag", "ai_timeout", "ai_block"] as const;
@@ -150,5 +152,47 @@ export async function listOpenReports(db: Db): Promise<OpenReportItem[]> {
     targetAuthorUsername: row.targetAuthorUsername ?? "anonim",
     targetTopicSlug: row.targetTopicSlug,
     targetStatus: row.targetStatus,
+  }));
+}
+
+export interface PendingTopicProposalItem {
+  id: string;
+  name: string;
+  type: "drug" | "condition" | "treatment";
+  proposerUsername: string;
+}
+
+/**
+ * status='pending' topic'leri (kullanıcı önerileri), tr i18n adı ve
+ * önerici kullanıcı adıyla döner. NOT: `topics` tablosunda createdAt
+ * alanı yok (veri modeli sözleşmesi — kickoff'ta buna karar verilmiş,
+ * burada değiştirilmez), bu yüzden öneri tarihi gösterilmez; sıralama
+ * i18n adına göre deterministiktir.
+ */
+export async function listPendingTopicProposals(
+  db: Db,
+): Promise<PendingTopicProposalItem[]> {
+  const rows = await db
+    .select({
+      id: topics.id,
+      type: topics.type,
+      name: topicI18n.name,
+      canonicalName: topics.canonicalName,
+      proposerUsername: proposers.username,
+    })
+    .from(topics)
+    .leftJoin(
+      topicI18n,
+      and(eq(topicI18n.topicId, topics.id), eq(topicI18n.locale, "tr")),
+    )
+    .leftJoin(proposers, eq(proposers.id, topics.createdBy))
+    .where(eq(topics.status, "pending"))
+    .orderBy(topicI18n.name);
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name ?? row.canonicalName,
+    type: row.type,
+    proposerUsername: row.proposerUsername ?? "anonim",
   }));
 }
