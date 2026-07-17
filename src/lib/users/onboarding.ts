@@ -18,6 +18,7 @@ export function validateUsername(username: string): string | null {
 export interface OnboardingProfile {
   username: string | null;
   kvkkConsentAt: Date | null;
+  bannedAt: Date | null;
 }
 
 /** Yazma eylemleri öncesi kontrol edilen profil alanları. */
@@ -26,7 +27,11 @@ export async function getOnboardingProfile(
   userId: string,
 ): Promise<OnboardingProfile | null> {
   const [row] = await db
-    .select({ username: users.username, kvkkConsentAt: users.kvkkConsentAt })
+    .select({
+      username: users.username,
+      kvkkConsentAt: users.kvkkConsentAt,
+      bannedAt: users.bannedAt,
+    })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);

@@ -12,6 +12,7 @@ import {
   real,
   text,
   timestamp,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -28,6 +29,8 @@ export const users = pgTable("users", {
   // KVKK açık rıza anı (sağlık verisi = özel nitelikli kişisel veri);
   // onboarding'de checkbox işaretlenince yazılır.
   kvkkConsentAt: timestamp("kvkk_consent_at", { withTimezone: true }),
+  // NULL = aktif; dolu = banlı (yazamaz/oylayamaz; okuma serbest).
+  bannedAt: timestamp("banned_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   // Auth.js AdapterUser'ın gerektirdiği alanlar (master plan sözleşmesi
   // dışında, Auth.js'in kendi ihtiyacı; hepsi nullable):
@@ -138,6 +141,48 @@ export const votes = pgTable(
     check("vote_value", sql`${table.value} IN (1, -1)`),
   ],
 );
+
+export const reports = pgTable(
+  "reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reporterId: uuid("reporter_id")
+      .notNull()
+      .references(() => users.id),
+    targetType: text("target_type").notNull().$type<"experience">(),
+    targetId: uuid("target_id").notNull(),
+    reason: text("reason")
+      .notNull()
+      .$type<"spam" | "medical_misinfo" | "personal_data" | "abuse" | "other">(),
+    status: text("status").notNull().default("open").$type<"open" | "resolved">(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    // Aynı kullanıcı aynı hedefi yalnız bir kez raporlar (sözleşme).
+    unique("reports_reporter_target").on(
+      table.reporterId,
+      table.targetType,
+      table.targetId,
+    ),
+  ],
+);
+
+export const moderationLog = pgTable("moderation_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  targetType: text("target_type").notNull(),
+  targetId: uuid("target_id").notNull(),
+  action: text("action")
+    .notNull()
+    .$type<"ai_flag" | "ai_block" | "ai_timeout" | "mod_remove" | "mod_restore">(),
+  detail: jsonb("detail").$type<{ reasons?: string[]; note?: string }>(),
+  actorType: text("actor_type").notNull().$type<"ai" | "user">(),
+  actorId: uuid("actor_id").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
 
 export const experienceSideEffects = pgTable(
   "experience_side_effects",

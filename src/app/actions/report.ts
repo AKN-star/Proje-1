@@ -1,35 +1,31 @@
 "use server";
 
 /**
- * Deneyim oylama server action'ı (T3, spec adım 2). Onboarding kontrolü
- * ŞART DEĞİL — oy sağlık verisi yayınlamaz (spec notu). Sıra: session
- * kontrolü → alan doğrulama → deneyim var + published kontrolü →
- * castVote → revalidate → redirect.
+ * Deneyim raporlama server action'ı (T3, faz-3-moderasyon-admin.md).
+ * Sıra vote.ts kalıbını izler: session kontrolü → alan doğrulama →
+ * deneyim var + published kontrolü → createReport → redirect. Sonuç
+ * ok/duplicate farkı kullanıcıya gösterilmez (spec: "sessiz başarı").
  */
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { experiences } from "@/db/schema";
-import { castVote } from "@/lib/votes/vote";
+import { createReport, isValidReportReason } from "@/lib/reports/report";
 import { getOnboardingProfile } from "@/lib/users/onboarding";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export async function voteExperience(formData: FormData): Promise<void> {
+export async function reportExperience(formData: FormData): Promise<void> {
   const slug = String(formData.get("slug") ?? "");
 
   const session = await auth();
   if (!session?.user) {
-    // Giriş sonrası kullanıcı oyladığı sayfaya dönsün.
     redirect(
       slug ? `/giris?next=${encodeURIComponent(`/baslik/${slug}`)}` : "/giris",
     );
   }
-  const experienceId = String(formData.get("experienceId") ?? "");
-  const rawValue = String(formData.get("value") ?? "");
 
   if (!slug) {
     redirect("/");
@@ -37,14 +33,16 @@ export async function voteExperience(formData: FormData): Promise<void> {
 
   const returnPath = `/baslik/${slug}`;
 
-  if ((rawValue !== "1" && rawValue !== "-1") || !UUID_RE.test(experienceId)) {
+  const experienceId = String(formData.get("experienceId") ?? "");
+  const reason = String(formData.get("reason") ?? "");
+
+  if (!UUID_RE.test(experienceId) || !isValidReportReason(reason)) {
     redirect(returnPath);
   }
-  const value = rawValue === "1" ? 1 : -1;
 
   const db = await getDb();
 
-  // Banlı kullanıcı oy veremez (master plan: yazamaz/oylayamaz).
+  // Banlı kullanıcının rapor spam'i admin kuyruğunu kirletmesin.
   const profile = await getOnboardingProfile(db, session.user.id);
   if (profile?.bannedAt) {
     redirect(returnPath);
@@ -59,8 +57,7 @@ export async function voteExperience(formData: FormData): Promise<void> {
     redirect(returnPath);
   }
 
-  await castVote(db, session.user.id, "experience", experienceId, value);
+  await createReport(db, session.user.id, "experience", experienceId, reason);
 
-  revalidatePath(returnPath);
-  redirect(returnPath);
+  redirect(`${returnPath}?bildirildi=1`);
 }

@@ -9,17 +9,21 @@ import { experiences, experienceSideEffects } from "@/db/schema";
 import type { ExperienceInput } from "@/lib/validation/experience";
 import type { ModerationVerdict } from "@/lib/ai/moderate";
 
+export type ExperienceStatus = "published" | "flagged" | "pending";
+
 export interface InsertExperienceResult {
   id: string;
-  status: "published" | "flagged";
+  status: ExperienceStatus;
 }
 
 /**
  * Moderasyon verdict'ini deneyim status'üne çevirir. 'block' burada
  * çağrılmamalı — çağıran taraf 'block' durumunda insert'i hiç tetiklemez.
  */
-export function statusForVerdict(verdict: ModerationVerdict): "published" | "flagged" {
-  return verdict === "flag" ? "flagged" : "published";
+export function statusForVerdict(verdict: ModerationVerdict): ExperienceStatus {
+  if (verdict === "flag") return "flagged";
+  if (verdict === "timeout") return "pending";
+  return "published";
 }
 
 /**
@@ -32,7 +36,7 @@ export async function insertExperience(
   input: ExperienceInput,
   userId: string,
   topicId: string,
-  status: "published" | "flagged",
+  status: ExperienceStatus,
 ): Promise<InsertExperienceResult> {
   const [row] = await db
     .insert(experiences)

@@ -38,7 +38,7 @@ Reddit/Ekşi tarzı platformlar var ama ilaç ve sağlık deneyimlerine odaklana
 ```
 users                  id, email, email_verified, username(unique, takma ad; NULL=onboarding bekliyor),
                        locale('tr'|'en'), role('user'|'pro'|'mod'|'admin'),
-                       pro_badge('doctor'|'pharmacist'|null), kvkk_consent_at, created_at
+                       pro_badge('doctor'|'pharmacist'|null), kvkk_consent_at, banned_at(null=aktif), created_at
                        (+ Auth.js adapter tabloları: accounts, sessions, verification_tokens;
                        adapter uyumu için email_verified kolonu DB'de "emailVerified" adıyla,
                        name/image kolonları nullable olarak tutulur)
@@ -59,9 +59,9 @@ questions              id, topic_id FK NOT NULL, user_id FK, title, body, lang, 
 answers                id, question_id FK NOT NULL, user_id FK, body, lang, status, created_at
 votes                  user_id + target_type('experience'|'answer') + target_id (unique bileşik),
                        value CHECK(-1|+1)
-reports                id, reporter_id FK, target_type, target_id, reason(enum),
+reports                id, reporter_id FK, target_type, target_id, reason(enum), unique(reporter_id, target_type, target_id),
                        status('open'|'resolved'), created_at
-moderation_log         id, target_type, target_id, action('ai_flag'|'ai_block'|'mod_remove'|'mod_restore'),
+moderation_log         id, target_type, target_id, action('ai_flag'|'ai_block'|'ai_timeout'|'mod_remove'|'mod_restore'),
                        detail(jsonb: AI gerekçesi), actor_type('ai'|'user'), actor_id(FK users|null), created_at
 translations           target_type, target_id, field, locale, text, model, source_hash, created_at
                        -- unique(target_type, target_id, field, locale); source_hash bayatlık kontrolü

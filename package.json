@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "admin:grant": "node scripts/make-admin.mjs"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",
