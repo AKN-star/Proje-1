@@ -38,7 +38,10 @@ yönetimi, paylaşım/OG, boş durum. Master plana Faz 9 satırı eklenir.
 ## Görevler
 T1 index'ler (0009) → T2 sayfalama (home SQL + topic render) →
 T3 deneyim düzenleme (lib+action+/deneyim-duzenle/[id]+profil linki) →
-T4 schema.org JSON-LD → T5 paylaş+OG → T6 boş durum. Review sonda.
+T4 schema.org JSON-LD → T5 paylaş+OG → T6 boş durum →
+T7 admin kullanıcı arama (?kullanici= — username/email ilike; rol/ban
+durumu + içerik sayıları; mevcut banUser action'ına bağlanır).
+Review sonda.
 
 ## Bitti tanımı
 lint+typecheck+vitest yeşil; CI yeşil; canlı: ana sayfa ve topic

@@ -18,6 +18,7 @@ import { listQuestions } from "@/lib/qa/questions";
 import { getFreshTranslation } from "@/lib/translations/cache";
 import { TranslateButton, TranslationBlock } from "@/components/translation";
 import { ProBadge } from "@/components/pro-badge";
+import { CopyLinkButton } from "@/components/copy-link-button";
 import { normalizeLocale, isLocale, type Locale } from "@/lib/locales";
 import { buildReturnPath } from "@/lib/url";
 import { cn } from "@/lib/utils";
@@ -188,7 +189,10 @@ export default async function TopicPage({
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-3xl font-semibold tracking-tight">{displayName}</h1>
-          <Badge variant="secondary">{TYPE_LABELS[topic.type] ?? topic.type}</Badge>
+          <div className="flex items-center gap-2">
+            <CopyLinkButton />
+            <Badge variant="secondary">{TYPE_LABELS[topic.type] ?? topic.type}</Badge>
+          </div>
         </div>
         {detailParts.length > 0 && (
           <p className="text-muted-foreground">{detailParts.join(" · ")}</p>
