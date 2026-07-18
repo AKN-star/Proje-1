@@ -43,6 +43,26 @@ T7 admin kullanıcı arama (?kullanici= — username/email ilike; rol/ban
 durumu + içerik sayıları; mevcut banUser action'ına bağlanır).
 Review sonda.
 
+## Kapanış notları
+- Final review (6 birleşik açı) 10 bulgu kapatıldı: düzenlemeye rate
+  limit (moderation_log'a 'user_edit' — sözleşme enum'u güncellendi,
+  text kolon olduğundan migration yok; experienceEdit 10/saat); vitrin
+  gerçek top-5 sorgusuna geçti; returnPath sayfa taşır, sort linkleri
+  amac'ı korur; aralık dışı sayfa mesajları; admin ban arama bağlamını
+  korur; OG tek sorgu + 404 + revalidate=3600; form alanları/hata
+  sözlüğü/escapeLike/parsePage tek kaynak; listTopics $dynamic koşullu
+  limit (+ q ile limit birlikte kullanılmaz uyarısı).
+- Bilinen kabul edilen sınırlar: topic deneyim sayfalaması render
+  dilimlemesi (sorgu seviyesi, skorun SQL'e taşınması refactor'ıyla);
+  yan etki delete+insert transaction'sız (neon-http — form yeniden
+  gönderimi düzeltir); soru/yanıt düzenleme kapsam dışı; searchUsers
+  anonimleştirilmiş (silinmis-*) hesapları da listeler (admin bağlamında
+  sorun değil); OG görseli tema-bağımsız koyu tasarım.
+- SAPMA: T3b 323, T5+T7 280 satır commit (200 yasası; migration
+  snapshot muafiyeti Faz 8 kaydına göre uygulanıyor).
+- Vitrin/son sorular bölümleri içerik yokken doğru şekilde gizlenir
+  (yerel smoke'ta boş DB ile doğrulandı).
+
 ## Bitti tanımı
 lint+typecheck+vitest yeşil; CI yeşil; canlı: ana sayfa ve topic
 sayfası sayfalanıyor, düzenleme akışı çalışıyor (moderasyondan geçer),
