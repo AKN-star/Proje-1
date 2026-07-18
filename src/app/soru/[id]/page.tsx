@@ -14,6 +14,7 @@ import { TranslateButton, TranslationBlock } from "@/components/translation";
 import { ProBadge } from "@/components/pro-badge";
 import { JsonLd } from "@/components/json-ld";
 import { CopyLinkButton } from "@/components/copy-link-button";
+import { ReportForm } from "@/components/report-form";
 import { normalizeLocale, isLocale, type Locale } from "@/lib/locales";
 import { UUID_RE } from "@/lib/validate";
 import { cn } from "@/lib/utils";
@@ -65,10 +66,11 @@ export default async function SoruPage({
     cevir?: string;
     dil?: string;
     cevirHata?: string;
+    bildirildi?: string;
   }>;
 }) {
   const { id } = await params;
-  const { hata, cevir, dil, cevirHata } = await searchParams;
+  const { hata, cevir, dil, cevirHata, bildirildi } = await searchParams;
 
   // uuid olmayan id sorguda PG hatasına (22P02) dönüşmesin — 404.
   if (!UUID_RE.test(id)) {
@@ -192,6 +194,7 @@ export default async function SoruPage({
           </span>
           <span>{formatDate(question.createdAt)}</span>
           <CopyLinkButton />
+          <ReportForm targetType="question" targetId={question.id} returnPath={returnPath} />
         </div>
         {question.body && (
           <p className="mt-2 whitespace-pre-wrap text-sm">{question.body}</p>
@@ -225,6 +228,12 @@ export default async function SoruPage({
           className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive"
         >
           {errorMessage}
+        </p>
+      )}
+
+      {bildirildi === "1" && (
+        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-400">
+          Bildiriminiz alındı, teşekkürler.
         </p>
       )}
 
@@ -311,6 +320,13 @@ export default async function SoruPage({
                       ▼
                     </button>
                   </form>
+                  <div className="ml-auto">
+                    <ReportForm
+                      targetType="answer"
+                      targetId={answer.id}
+                      returnPath={returnPath}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>

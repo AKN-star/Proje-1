@@ -12,8 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { MedicalDisclaimer } from "@/components/medical-disclaimer";
 import { voteExperience } from "@/app/actions/vote";
-import { reportExperience } from "@/app/actions/report";
-import { REPORT_REASONS } from "@/lib/reports/report";
+import { ReportForm } from "@/components/report-form";
 import { listQuestions } from "@/lib/qa/questions";
 import { getFreshTranslation } from "@/lib/translations/cache";
 import { TranslateButton, TranslationBlock } from "@/components/translation";
@@ -427,43 +426,11 @@ export default async function TopicPage({
                       </button>
                     </form>
                   </div>
-                  <details className="text-xs text-muted-foreground">
-                    <summary className="cursor-pointer select-none hover:text-foreground">
-                      Bildir
-                    </summary>
-                    <form
-                      action={reportExperience}
-                      className="mt-2 flex flex-col items-end gap-1.5"
-                    >
-                      <input type="hidden" name="experienceId" value={experience.id} />
-                      <input type="hidden" name="slug" value={topic.slug} />
-                      <input type="hidden" name="returnPath" value={returnPath} />
-                      <select
-                        name="reason"
-                        defaultValue=""
-                        required
-                        className="rounded-md border border-input bg-background px-2 py-1 text-xs"
-                      >
-                        <option value="" disabled>
-                          Sebep seçin
-                        </option>
-                        {REPORT_REASONS.map((r) => (
-                          <option key={r.value} value={r.value}>
-                            {r.label}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="submit"
-                        className={cn(
-                          buttonVariants({ variant: "outline", size: "sm" }),
-                          "h-7 text-xs",
-                        )}
-                      >
-                        Gönder
-                      </button>
-                    </form>
-                  </details>
+                  <ReportForm
+                    targetType="experience"
+                    targetId={experience.id}
+                    returnPath={returnPath}
+                  />
                 </div>
               </CardContent>
             </Card>

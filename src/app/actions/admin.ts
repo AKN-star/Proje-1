@@ -10,7 +10,7 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
 import type { Db } from "@/db";
-import { experiences, reports, topics, users } from "@/db/schema";
+import { answers, experiences, questions, reports, topics, users } from "@/db/schema";
 import { requireModerator, type ModeratorActor } from "@/lib/admin/guard";
 import { reviewBadgeRequest } from "@/lib/badges/requests";
 import { logModeration } from "@/lib/moderation/log";
@@ -228,6 +228,62 @@ export async function rejectTopic(formData: FormData): Promise<void> {
     targetId: topicId,
     action: "mod_remove",
     detail: { note: "topic-proposal" },
+    actorType: "user",
+    actorId: actor.id,
+  });
+
+  revalidatePath("/admin");
+  redirect("/admin");
+}
+
+/**
+ * Kuyruktaki (flagged/pending) veya kaldırılmış soru/yanıtı sonuçlandırır
+ * (Faz 10 T1): approve→published, remove→removed; mod_restore/mod_remove
+ * logu. Deneyim akışıyla aynı ilkeler.
+ */
+export async function reviewQaContent(formData: FormData): Promise<void> {
+  const db = await getDb();
+  const actor = await requireActor(db);
+
+  const kind = String(formData.get("kind") ?? "");
+  const targetId = String(formData.get("targetId") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  if (
+    (kind !== "question" && kind !== "answer") ||
+    !UUID_RE.test(targetId) ||
+    (decision !== "approve" && decision !== "remove")
+  ) {
+    redirect("/admin");
+  }
+
+  const nextStatus = decision === "approve" ? "published" : "removed";
+
+  if (kind === "question") {
+    const [row] = await db
+      .select({ status: questions.status })
+      .from(questions)
+      .where(eq(questions.id, targetId))
+      .limit(1);
+    if (!row || row.status === nextStatus) {
+      redirect("/admin");
+    }
+    await db.update(questions).set({ status: nextStatus }).where(eq(questions.id, targetId));
+  } else {
+    const [row] = await db
+      .select({ status: answers.status })
+      .from(answers)
+      .where(eq(answers.id, targetId))
+      .limit(1);
+    if (!row || row.status === nextStatus) {
+      redirect("/admin");
+    }
+    await db.update(answers).set({ status: nextStatus }).where(eq(answers.id, targetId));
+  }
+
+  await logModeration(db, {
+    targetType: kind,
+    targetId,
+    action: decision === "approve" ? "mod_restore" : "mod_remove",
     actorType: "user",
     actorId: actor.id,
   });

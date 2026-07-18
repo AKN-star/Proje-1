@@ -7,6 +7,7 @@ import {
   listModerationQueue,
   listOpenReports,
   listPendingTopicProposals,
+  listQaModerationQueue,
   searchUsers,
 } from "@/lib/admin/queries";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import {
   removeExperience,
   resolveReport,
   reviewBadge,
+  reviewQaContent,
 } from "@/app/actions/admin";
 import {
   CLAIMED_ROLE_LABELS,
@@ -36,6 +38,12 @@ export const dynamic = "force-dynamic";
 const REPORT_REASON_LABELS: Record<string, string> = Object.fromEntries(
   REPORT_REASONS.map((r) => [r.value, r.label]),
 );
+
+const QA_KIND_LABELS: Record<string, string> = {
+  experience: "Deneyim",
+  question: "Soru",
+  answer: "Yanıt",
+};
 
 const TOPIC_TYPE_LABELS: Record<string, string> = {
   drug: "İlaç",
@@ -72,12 +80,14 @@ export default async function AdminPage({
   const { kullanici } = await searchParams;
   const userResults = kullanici ? await searchUsers(db, kullanici) : [];
 
-  const [queue, openReports, pendingTopics, pendingBadges] = await Promise.all([
-    listModerationQueue(db),
-    listOpenReports(db),
-    listPendingTopicProposals(db),
-    listPendingBadgeRequests(db),
-  ]);
+  const [queue, qaQueue, openReports, pendingTopics, pendingBadges] =
+    await Promise.all([
+      listModerationQueue(db),
+      listQaModerationQueue(db),
+      listOpenReports(db),
+      listPendingTopicProposals(db),
+      listPendingBadgeRequests(db),
+    ]);
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-10 px-6 py-12">
@@ -183,12 +193,10 @@ export default async function AdminPage({
                   Raporlayan: @{report.reporterUsername}
                 </p>
                 <p className="text-sm">
-                  <strong>Hedef:</strong> @{report.targetAuthorUsername} —{" "}
-                  <Link
-                    href={`/baslik/${report.targetTopicSlug}`}
-                    className="hover:underline"
-                  >
-                    konu sayfası
+                  <strong>Hedef ({QA_KIND_LABELS[report.targetType]}):</strong>{" "}
+                  @{report.targetAuthorUsername} —{" "}
+                  <Link href={report.targetHref} className="hover:underline">
+                    içeriği gör
                   </Link>
                 </p>
                 <p className="text-sm text-muted-foreground">{report.targetBodyPreview}</p>
@@ -202,28 +210,107 @@ export default async function AdminPage({
                       Çözüldü
                     </button>
                   </form>
-                  {report.targetStatus === "published" && (
-                    <form action={removeExperience}>
-                      <input
-                        type="hidden"
-                        name="experienceId"
-                        value={report.targetExperienceId}
-                      />
+                  {report.targetStatus === "published" &&
+                    (report.targetType === "experience" ? (
+                      <form action={removeExperience}>
+                        <input type="hidden" name="experienceId" value={report.targetId} />
+                        <button
+                          type="submit"
+                          className={cn(buttonVariants({ variant: "destructive", size: "sm" }))}
+                        >
+                          Kaldır
+                        </button>
+                      </form>
+                    ) : (
+                      <form action={reviewQaContent}>
+                        <input type="hidden" name="kind" value={report.targetType} />
+                        <input type="hidden" name="targetId" value={report.targetId} />
+                        <input type="hidden" name="decision" value="remove" />
+                        <button
+                          type="submit"
+                          className={cn(buttonVariants({ variant: "destructive", size: "sm" }))}
+                        >
+                          Kaldır
+                        </button>
+                      </form>
+                    ))}
+                  {report.targetAuthorId && (
+                    <form action={banUser}>
+                      <input type="hidden" name="userId" value={report.targetAuthorId} />
                       <button
                         type="submit"
-                        className={cn(buttonVariants({ variant: "destructive", size: "sm" }))}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
                       >
-                        Kaldır
+                        Yazarı banla
                       </button>
                     </form>
                   )}
-                  <form action={banUser}>
-                    <input type="hidden" name="userId" value={report.targetAuthorId} />
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-xl font-semibold">Soru/Yanıt kuyruğu</h2>
+        {qaQueue.length === 0 ? (
+          <p className="text-muted-foreground">Kuyruk boş.</p>
+        ) : (
+          qaQueue.map((item) => (
+            <Card key={`${item.kind}-${item.id}`}>
+              <CardHeader>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base">@{item.authorUsername}</CardTitle>
+                    <Badge variant="secondary">{QA_KIND_LABELS[item.kind]}</Badge>
+                    <Badge
+                      variant="outline"
+                      className={
+                        item.status === "flagged"
+                          ? "border-red-300 text-red-700 dark:border-red-800 dark:text-red-400"
+                          : "border-amber-300 text-amber-700 dark:border-amber-800 dark:text-amber-400"
+                      }
+                    >
+                      {item.status === "flagged" ? "İşaretli" : "Beklemede"}
+                    </Badge>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {formatDate(item.createdAt)}
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <p className="whitespace-pre-wrap text-sm">{item.body}</p>
+                {item.aiReasons.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    AI gerekçesi: {item.aiReasons.join(", ")}
+                  </p>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link href={`/soru/${item.questionId}`} className="text-sm hover:underline">
+                    Soru sayfası →
+                  </Link>
+                  <form action={reviewQaContent}>
+                    <input type="hidden" name="kind" value={item.kind} />
+                    <input type="hidden" name="targetId" value={item.id} />
+                    <input type="hidden" name="decision" value="approve" />
                     <button
                       type="submit"
-                      className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                      className={cn(buttonVariants({ variant: "default", size: "sm" }))}
                     >
-                      Yazarı banla
+                      Onayla
+                    </button>
+                  </form>
+                  <form action={reviewQaContent}>
+                    <input type="hidden" name="kind" value={item.kind} />
+                    <input type="hidden" name="targetId" value={item.id} />
+                    <input type="hidden" name="decision" value="remove" />
+                    <button
+                      type="submit"
+                      className={cn(buttonVariants({ variant: "destructive", size: "sm" }))}
+                    >
+                      Kaldır
                     </button>
                   </form>
                 </div>
