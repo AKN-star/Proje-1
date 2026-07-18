@@ -38,7 +38,10 @@ Reddit/Ekşi tarzı platformlar var ama ilaç ve sağlık deneyimlerine odaklana
 ```
 users                  id, email, email_verified, username(unique, takma ad; NULL=onboarding bekliyor),
                        locale('tr'|'en'), role('user'|'pro'|'mod'|'admin'),
-                       pro_badge('doctor'|'pharmacist'|null), kvkk_consent_at, banned_at(null=aktif), created_at
+                       pro_badge('doctor'|'pharmacist'|null), kvkk_consent_at, banned_at(null=aktif),
+                       email_optout(bool, default false — yanıt bildirimi tercihi, Faz 8), created_at
+                       -- hesap silme = anonimleştirme (Faz 8): email tombstone, username/name/image/pro_badge NULL;
+                       -- satır FK'ler nedeniyle silinmez, içerik "anonim" imzasıyla kalır
                        (+ Auth.js adapter tabloları: accounts, sessions, verification_tokens;
                        adapter uyumu için email_verified kolonu DB'de "emailVerified" adıyla,
                        name/image kolonları nullable olarak tutulur)
@@ -115,6 +118,9 @@ UI'nin next-intl ile TR/EN tamamlanması; içerikte "çevir" butonu → LLM çev
 ### Faz 6 — Profesyonel rozet + kimlik
 Rozet başvuru formu → Resend ile **hepteqsadeceteq@gmail.com**'a mail + admin panelde onay → ✔ rozet gösterimi (deneyim/yanıt kartlarında); Google OAuth.
 **İnsan adımı:** Google Cloud OAuth client.
+
+### Faz 8 — Kullanıcı deneyimi iyileştirmeleri (plan sonrası ek, 2026-07-18)
+/profil (kendi içeriğini görme + kaldırma) + hesap silme (anonimleştirme); yanıt bildirimi e-postası (+ email_optout tercihi); /nasil-calisir güven sayfası; topic sayfasında amaç filtresi; sıfır sonuçta yazım önerisi; karanlık mod düğmesi. Ayrıntı: docs/specs/faz-8-kullanici-iyilestirmeleri.md
 
 ### Faz 7 — Yayın sertleşmesi
 TİTCK tam ilaç listesi import script'i (önce lisans/kullanım şartı araştırması); SEO (metadata, sitemap, OG) + **noindex ve deployment protection kaldırılır**; Sentry; rate limiting (Postgres-içi sliding window); KVKK aydınlatma + açık rıza metinleri + kullanım şartları (tıbbi sorumluluk reddi dahil); Playwright e2e ana akışlar; performans; domain bağlama.

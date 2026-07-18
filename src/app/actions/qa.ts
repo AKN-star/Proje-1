@@ -11,7 +11,9 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
+import { after } from "next/server";
 import { answers, questions, topics } from "@/db/schema";
+import { notifyQuestionOwner } from "@/lib/qa/notify";
 import {
   validateQuestionInput,
   validateAnswerInput,
@@ -197,6 +199,15 @@ export async function submitAnswer(formData: FormData): Promise<void> {
       detail: { reasons: moderation.reasons },
       actorType: "ai",
     });
+  }
+
+  // Yanıt anında yayınlandıysa soru sahibine bildir. `after`: Resend
+  // round-trip'i kullanıcının redirect'ini bekletmez (yanıt zaten
+  // yazıldı); kuyruktan sonradan onaylanan yanıt bildirim üretmez
+  // (spec bilinen sınırı). Guard'lar ve kompozisyon lib'de tek yerde.
+  if (result.status === "published") {
+    const answererId = session.user.id;
+    after(() => notifyQuestionOwner(db, question.id, answererId));
   }
 
   revalidatePath(returnPath);

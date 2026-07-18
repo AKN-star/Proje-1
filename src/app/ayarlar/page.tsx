@@ -6,7 +6,7 @@ import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
 import { normalizeLocale } from "@/lib/locales";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-import { updateLocale } from "@/app/actions/settings";
+import { updateEmailPref, updateLocale } from "@/app/actions/settings";
 import { getLatestBadgeRequest } from "@/lib/badges/requests";
 
 // Oturuma bağlı canlı veri; prerender edilmez.
@@ -75,6 +75,32 @@ export default async function AyarlarPage({
                 <option value="en">İngilizce</option>
               </select>
             </div>
+            <button
+              type="submit"
+              className={buttonVariants({ variant: "default", className: "w-fit" })}
+            >
+              Kaydet
+            </button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">E-posta bildirimleri</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form action={updateEmailPref} className="flex flex-col gap-4">
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="bildirim"
+                value="1"
+                defaultChecked={!profile?.emailOptout}
+                className="mt-0.5"
+              />
+              <span>Soruma yanıt geldiğinde e-posta ile haber ver.</span>
+            </label>
             <button
               type="submit"
               className={buttonVariants({ variant: "default", className: "w-fit" })}

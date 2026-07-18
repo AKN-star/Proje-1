@@ -85,10 +85,11 @@ export default async function TopicPage({
     cevir?: string;
     dil?: string;
     cevirHata?: string;
+    amac?: string;
   }>;
 }) {
   const { slug } = await params;
-  const { sirala, bildirildi, cevir, dil, cevirHata } = await searchParams;
+  const { sirala, bildirildi, cevir, dil, cevirHata, amac } = await searchParams;
   const sort: TopicSort = sirala === "oy" ? "oy" : "yeni";
 
   const db = await getDb();
@@ -99,7 +100,18 @@ export default async function TopicPage({
     notFound();
   }
 
-  const { topic, experiences } = result;
+  const { topic, experiences: allExperiences } = result;
+
+  // Amaç filtresi (Faz 8 T4): seçenekler sayfadaki gerçek deneyimlerden
+  // türetilir; istatistik kartı bilinçle DOKUNULMAZ (topic_stats bütünü
+  // gösterir). Bilinmeyen ?amac= değeri filtre uygulamaz.
+  const purposes = [...new Set(allExperiences.map((e) => e.purpose))].sort((a, b) =>
+    a.localeCompare(b, "tr"),
+  );
+  const activePurpose = amac && purposes.includes(amac) ? amac : undefined;
+  const experiences = activePurpose
+    ? allExperiences.filter((e) => e.purpose === activePurpose)
+    : allExperiences;
 
   // Girişli + onboarded + banlı olmayan kullanıcının çeviri locale
   // tercihi; aksi halde Çevir butonu hiç gösterilmez (action'daki
@@ -113,16 +125,19 @@ export default async function TopicPage({
   }
 
   // bildirildi tek seferlik flash — returnPath'e taşınmaz.
-  const returnPath = buildReturnPath(`/baslik/${slug}`, { sirala });
+  const returnPath = buildReturnPath(`/baslik/${slug}`, { sirala, amac: activePurpose });
 
   const [cevirType, cevirId] = cevir ? cevir.split(":") : [undefined, undefined];
   const cevirLocale = dil && isLocale(dil) ? dil : undefined;
 
   // Çeviri yalnız sayfadaki gerçek satır üstünden okunur (rastgele
   // ?cevir= id'si sorguya inmez) ve hash güncel değilse gösterilmez.
+  // Filtresiz listede aranır: paylaşılan çeviri linkine sonradan farklı
+  // ?amac= eklense de çeviri kaybolmasın (kart görünmüyorsa blok da
+  // render edilmez, zararsız).
   const cevirExperience =
     cevirType === "experience" && cevirId
-      ? experiences.find((e) => e.id === cevirId)
+      ? allExperiences.find((e) => e.id === cevirId)
       : undefined;
   const translatedExperienceBody =
     cevirExperience && cevirLocale
@@ -246,6 +261,32 @@ export default async function TopicPage({
             </Link>
           </div>
         </div>
+        {purposes.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Kullanım amacı:</span>
+            <Link
+              href={buildReturnPath(`/baslik/${topic.slug}`, { sirala })}
+              className={cn(
+                "rounded-full border px-3 py-0.5 hover:bg-accent/50",
+                !activePurpose && "border-foreground font-medium",
+              )}
+            >
+              Tümü
+            </Link>
+            {purposes.map((purpose) => (
+              <Link
+                key={purpose}
+                href={buildReturnPath(`/baslik/${topic.slug}`, { sirala, amac: purpose })}
+                className={cn(
+                  "rounded-full border px-3 py-0.5 hover:bg-accent/50",
+                  activePurpose === purpose && "border-foreground font-medium",
+                )}
+              >
+                {purpose}
+              </Link>
+            ))}
+          </div>
+        )}
         {experiences.length === 0 ? (
           <p className="text-muted-foreground">Henüz deneyim paylaşılmamış.</p>
         ) : (
@@ -350,6 +391,7 @@ export default async function TopicPage({
                     >
                       <input type="hidden" name="experienceId" value={experience.id} />
                       <input type="hidden" name="slug" value={topic.slug} />
+                      <input type="hidden" name="returnPath" value={returnPath} />
                       <select
                         name="reason"
                         defaultValue=""

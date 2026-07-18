@@ -15,6 +15,7 @@ import { createReport, isValidReportReason } from "@/lib/reports/report";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getOnboardingProfile } from "@/lib/users/onboarding";
 import { UUID_RE } from "@/lib/validate";
+import { safeInternalPath } from "@/lib/url";
 
 export async function reportExperience(formData: FormData): Promise<void> {
   const slug = String(formData.get("slug") ?? "");
@@ -30,7 +31,9 @@ export async function reportExperience(formData: FormData): Promise<void> {
     redirect("/");
   }
 
-  const returnPath = `/baslik/${slug}`;
+  // Filtre/sıralama bağlamı korunur (?amac=, ?sirala= — Faz 8 T4);
+  // form vermezse veya değer güvensizse çıplak topic yoluna düşer.
+  const returnPath = safeInternalPath(formData.get("returnPath"), `/baslik/${slug}`);
 
   const experienceId = String(formData.get("experienceId") ?? "");
   const reason = String(formData.get("reason") ?? "");

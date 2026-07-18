@@ -4,6 +4,7 @@
  * değişikliği önce master plandaki tabloyu güncellemeli.
  */
 import {
+  boolean,
   check,
   integer,
   jsonb,
@@ -31,6 +32,8 @@ export const users = pgTable("users", {
   kvkkConsentAt: timestamp("kvkk_consent_at", { withTimezone: true }),
   // NULL = aktif; dolu = banlı (yazamaz/oylayamaz; okuma serbest).
   bannedAt: timestamp("banned_at", { withTimezone: true }),
+  // Yanıt bildirimi e-postası tercihi (Faz 8): true = gönderme.
+  emailOptout: boolean("email_optout").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   // Auth.js AdapterUser'ın gerektirdiği alanlar (master plan sözleşmesi
   // dışında, Auth.js'in kendi ihtiyacı; hepsi nullable):

@@ -38,3 +38,28 @@ export async function updateLocale(formData: FormData): Promise<void> {
   revalidatePath("/ayarlar");
   redirect("/ayarlar?kaydedildi=1");
 }
+
+/** Yanıt bildirimi e-postası tercihi (Faz 8 T2). Checkbox işaretli =
+ * bildirim istiyor = optout false. */
+export async function updateEmailPref(formData: FormData): Promise<void> {
+  const session = await auth();
+  if (!session?.user) {
+    redirect("/giris?next=%2Fayarlar");
+  }
+
+  const db = await getDb();
+
+  const profile = await getOnboardingProfile(db, session.user.id);
+  if (!isOnboarded(profile)) {
+    redirect("/hosgeldin?next=%2Fayarlar");
+  }
+
+  const wantsEmails = formData.get("bildirim") === "1";
+  await db
+    .update(users)
+    .set({ emailOptout: !wantsEmails })
+    .where(eq(users.id, session.user.id));
+
+  revalidatePath("/ayarlar");
+  redirect("/ayarlar?kaydedildi=1");
+}
