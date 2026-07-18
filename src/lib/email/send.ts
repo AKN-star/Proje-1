@@ -54,6 +54,39 @@ export async function sendMagicLink(to: string, url: string): Promise<void> {
 }
 
 /**
+ * Soru sahibine yeni yanıt bildirimi (Faz 8 T2). Yanıt DB'ye
+ * yazıldıktan sonra çağrılır; e-posta hatası akışı GERİ ALMAZ (rozet
+ * bildirimi kalıbı — hata yutulup loglanır). Kendine yanıt ve
+ * email_optout kontrolü ÇAĞIRANDA yapılır.
+ */
+export async function sendAnswerNotice(input: {
+  to: string;
+  questionTitle: string;
+  questionUrl: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+
+  if (!apiKey) {
+    console.log(`YANIT BILDIRIMI (dev): ${input.to} -> ${input.questionUrl}`);
+    return;
+  }
+
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  try {
+    await postResendEmail(
+      apiKey,
+      input.to,
+      `${brand.name} — sorunuza yeni bir yanıt geldi`,
+      `<p>&quot;${esc(input.questionTitle)}&quot; sorunuza yeni bir yanıt geldi.</p><p><a href="${input.questionUrl}">Yanıtı görüntüleyin</a></p><p>Bu bildirimleri Ayarlar sayfasından kapatabilirsiniz.</p>`,
+    );
+  } catch (err) {
+    console.error("Yanıt bildirimi gönderilemedi:", err);
+  }
+}
+
+/**
  * Yeni rozet başvurusunu operasyon adresine bildirir (Faz 6). Başvuru
  * DB'ye yazıldıktan sonra çağrılır ve admin panelde zaten görünür —
  * e-posta hatası başvuruyu geri almaz; hata burada yutulup loglanır.

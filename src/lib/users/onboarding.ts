@@ -21,6 +21,7 @@ export interface OnboardingProfile {
   bannedAt: Date | null;
   locale: string;
   proBadge: string | null;
+  emailOptout: boolean;
 }
 
 /** Yazma eylemleri öncesi kontrol edilen profil alanları. */
@@ -35,6 +36,7 @@ export async function getOnboardingProfile(
       bannedAt: users.bannedAt,
       locale: users.locale,
       proBadge: users.proBadge,
+      emailOptout: users.emailOptout,
     })
     .from(users)
     .where(eq(users.id, userId))

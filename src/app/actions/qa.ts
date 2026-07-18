@@ -11,7 +11,9 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
-import { answers, questions, topics } from "@/db/schema";
+import { answers, questions, topics, users } from "@/db/schema";
+import { sendAnswerNotice } from "@/lib/email/send";
+import { siteUrl } from "@/lib/launch";
 import {
   validateQuestionInput,
   validateAnswerInput,
@@ -197,6 +199,25 @@ export async function submitAnswer(formData: FormData): Promise<void> {
       detail: { reasons: moderation.reasons },
       actorType: "ai",
     });
+  }
+
+  // Yanıt anında yayınlandıysa soru sahibine bildir (kendine yanıt ve
+  // email_optout hariç). Kuyruktan sonradan onaylanan yanıt bildirim
+  // üretmez (spec bilinen sınırı); hata sendAnswerNotice'ta yutulur.
+  if (result.status === "published") {
+    const [owner] = await db
+      .select({ id: users.id, email: users.email, emailOptout: users.emailOptout, title: questions.title })
+      .from(questions)
+      .innerJoin(users, eq(users.id, questions.userId))
+      .where(eq(questions.id, question.id))
+      .limit(1);
+    if (owner && owner.id !== session.user.id && !owner.emailOptout) {
+      await sendAnswerNotice({
+        to: owner.email,
+        questionTitle: owner.title,
+        questionUrl: `${siteUrl()}${returnPath}`,
+      });
+    }
   }
 
   revalidatePath(returnPath);
