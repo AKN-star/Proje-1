@@ -31,6 +31,10 @@ export interface ListTopicsOptions {
   q?: string;
   /** i18n eşleşmesi için locale (varsayılan 'tr'). */
   locale?: string;
+  /** SQL sayfalaması (Faz 9 T2): verilirse limit+1 satır çekilir ve
+   * hasMore hesaplanabilsin diye çağıran fazlalığı keser. */
+  limit?: number;
+  offset?: number;
 }
 
 /**
@@ -112,7 +116,9 @@ export async function listTopics(
       topicI18n.name,
       drugDetails.activeIngredient,
     )
-    .orderBy(asc(topics.canonicalName));
+    .orderBy(asc(topics.canonicalName))
+    .limit(options.limit ?? Number.MAX_SAFE_INTEGER)
+    .offset(options.offset ?? 0);
 
   const items = rows.map((row) => ({
     ...row,

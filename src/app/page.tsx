@@ -19,15 +19,27 @@ const TYPE_LABELS: Record<string, string> = {
   treatment: "Tedavi",
 };
 
+const PAGE_SIZE = 30;
+
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; sayfa?: string }>;
 }) {
-  const { q } = await searchParams;
+  const { q, sayfa } = await searchParams;
   const db = await getDb();
   const session = await auth();
-  const topicList = await listTopics(db, { q, locale: "tr" });
+
+  // SQL sayfalaması yalnız aramasız listede (Faz 9 T2): arama sonuçları
+  // ilgililiğe göre JS'te sıralandığından ve küçük olduğundan sayfalanmaz.
+  const page = Math.max(1, Number.parseInt(sayfa ?? "1", 10) || 1);
+  const rawList = await listTopics(db, {
+    q,
+    locale: "tr",
+    ...(q ? {} : { limit: PAGE_SIZE + 1, offset: (page - 1) * PAGE_SIZE }),
+  });
+  const hasMore = !q && rawList.length > PAGE_SIZE;
+  const topicList = hasMore ? rawList.slice(0, PAGE_SIZE) : rawList;
   // Yalnız sıfır sonuçta yazım önerisi aranır (Faz 8 T5).
   const suggestions =
     q && topicList.length === 0 ? await suggestTopics(db, q) : [];
@@ -125,6 +137,27 @@ export default async function Home({
           ))
         )}
       </div>
+
+      {!q && (page > 1 || hasMore) && (
+        <div className="flex items-center justify-center gap-4 text-sm">
+          {page > 1 && (
+            <Link
+              href={page === 2 ? "/" : `/?sayfa=${page - 1}`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              ← Önceki
+            </Link>
+          )}
+          {hasMore && (
+            <Link
+              href={`/?sayfa=${page + 1}`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Sonraki →
+            </Link>
+          )}
+        </div>
+      )}
     </main>
   );
 }
