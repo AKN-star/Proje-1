@@ -8,7 +8,7 @@ import * as schema from "@/db/schema";
 import { seed } from "@/db/seed";
 import { experiences, moderationLog, reports, topicStats, users } from "@/db/schema";
 import { requireModerator } from "./guard";
-import { listModerationQueue, listOpenReports } from "./queries";
+import { listModerationQueue, listOpenReports, searchUsers } from "./queries";
 import { logModeration } from "@/lib/moderation/log";
 import { recalcTopicStats } from "@/lib/stats/topic-stats";
 
@@ -252,6 +252,26 @@ describe("moderasyon eylemleri (approve/remove akışı)", () => {
       .from(experiences)
       .where(eq(experiences.id, publishedId));
     expect(experienceRow?.status).toBe("removed");
+  });
+
+  it("searchUsers takma ad/e-posta ile bulur, içerik sayısı ve ban durumunu döner", async () => {
+    const userId = await makeUser("aranan-kisi@example.com");
+    await makeExperience(userId, "published");
+
+    const byEmail = await searchUsers(db, "aranan-kisi");
+    expect(byEmail).toHaveLength(1);
+    expect(byEmail[0]).toMatchObject({
+      username: "aranan-kisi",
+      email: "aranan-kisi@example.com",
+      role: "user",
+      bannedAt: null,
+      experienceCount: 1,
+      questionCount: 0,
+    });
+
+    // Joker karakterler kaçırılır — '%' tüm kullanıcıları döndürmez.
+    expect(await searchUsers(db, "%")).toEqual([]);
+    expect(await searchUsers(db, "  ")).toEqual([]);
   });
 
   it("resolveReport → status resolved", async () => {
