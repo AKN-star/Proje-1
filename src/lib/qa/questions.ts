@@ -93,7 +93,7 @@ export async function listQuestions(
     .from(questions)
     .innerJoin(users, eq(users.id, questions.userId))
     .where(and(eq(questions.topicId, topicId), eq(questions.status, "published")))
-    .orderBy(desc(questions.createdAt));
+    .orderBy(desc(questions.createdAt), desc(questions.id));
 
   const questionIds = questionRows.map((row) => row.id);
   const answerCounts = new Map<string, number>();
@@ -165,7 +165,7 @@ export async function listRecentQuestions(
     .from(questions)
     .innerJoin(topics, eq(topics.id, questions.topicId))
     .where(and(eq(questions.status, "published"), eq(topics.status, "active")))
-    .orderBy(desc(questions.createdAt))
+    .orderBy(desc(questions.createdAt), desc(questions.id))
     .limit(limit);
 }
 
@@ -248,7 +248,7 @@ export async function getQuestion(
     .from(answers)
     .innerJoin(users, eq(users.id, answers.userId))
     .where(and(eq(answers.questionId, questionId), eq(answers.status, "published")))
-    .orderBy(desc(answers.createdAt));
+    .orderBy(desc(answers.createdAt), desc(answers.id));
 
   const answerIds = answerRows.map((row) => row.id);
   const scores = await getScores(db, "answer", answerIds, currentUserId);

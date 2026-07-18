@@ -5,7 +5,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import * as schema from "@/db/schema";
 import { seed } from "@/db/seed";
-import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { questions, users } from "@/db/schema";
 import { castVote } from "@/lib/votes/vote";
 import {
   createAnswer,
@@ -147,8 +148,6 @@ describe("listQuestions", () => {
       topicId,
       "published",
     );
-    // createdAt farkını belirgin kılmak için ikinci soruyu manuel createdAt
-    // ile ekliyoruz (defaultNow aynı ms'e denk gelebilir).
     void first;
     const second = await createQuestion(
       db,
@@ -157,6 +156,14 @@ describe("listQuestions", () => {
       topicId,
       "published",
     );
+    // KURULUM DÜZELTMESİ (CI flake, run 29656054918): iki insert aynı
+    // zaman damgasına denk gelebiliyor ve "en yeni üstte" beklentisi
+    // eşitlikte belirsizleşiyordu. Assert AYNEN duruyor; yalnız ikinci
+    // sorunun createdAt'i açıkça ileri alınarak senaryo netleştirildi.
+    await db
+      .update(questions)
+      .set({ createdAt: new Date(Date.now() + 1000) })
+      .where(eq(questions.id, second.id));
 
     const list = await listQuestions(db, topicId);
     expect(list.length).toBe(2);
