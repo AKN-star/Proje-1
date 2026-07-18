@@ -2,7 +2,8 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { brand } from "@/config/brand";
 import { getDb } from "@/db";
-import { listTopics } from "@/lib/queries/topics";
+import { listFeaturedTopics, listTopics } from "@/lib/queries/topics";
+import { parsePage } from "@/lib/validate";
 import { suggestTopics } from "@/lib/queries/suggest";
 import { listRecentQuestions } from "@/lib/qa/questions";
 import { siteUrl } from "@/lib/launch";
@@ -35,7 +36,7 @@ export default async function Home({
 
   // SQL sayfalaması yalnız aramasız listede (Faz 9 T2): arama sonuçları
   // ilgililiğe göre JS'te sıralandığından ve küçük olduğundan sayfalanmaz.
-  const page = Math.max(1, Number.parseInt(sayfa ?? "1", 10) || 1);
+  const page = parsePage(sayfa);
   const rawList = await listTopics(db, {
     q,
     locale: "tr",
@@ -48,18 +49,11 @@ export default async function Home({
     q && topicList.length === 0 ? await suggestTopics(db, q) : [];
 
   // Boş durum bölümleri (Faz 9 T6): yalnız aramasız ilk sayfada.
+  // Öne çıkanlar sayfalanmış listeden TÜRETİLMEZ — gerçek top-5 için
+  // ayrı sorgu (review bulgusu: alfabetik ilk sayfa vitrin olamaz).
   const showHighlights = !q && page === 1;
   const [featured, recentQuestions] = showHighlights
-    ? await Promise.all([
-        Promise.resolve(
-          topicList
-            .filter((t) => t.experienceCount > 0)
-            .slice()
-            .sort((a, b) => b.experienceCount - a.experienceCount)
-            .slice(0, 5),
-        ),
-        listRecentQuestions(db, 5),
-      ])
+    ? await Promise.all([listFeaturedTopics(db, 5), listRecentQuestions(db, 5)])
     : [[], []];
 
   return (
@@ -125,7 +119,7 @@ export default async function Home({
                   href={`/baslik/${topic.slug}`}
                   className="flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-accent/50"
                 >
-                  <span>{topic.name ?? topic.canonicalName}</span>
+                  <span>{topic.name}</span>
                   <span className="text-muted-foreground">
                     {topic.experienceCount} deneyim
                   </span>
@@ -167,6 +161,16 @@ export default async function Home({
                     className="underline underline-offset-2 hover:text-foreground"
                   >
                     Bu başlığı önerin
+                  </Link>
+                </>
+              ) : page > 1 ? (
+                <>
+                  Bu sayfada başlık yok.{" "}
+                  <Link
+                    href="/"
+                    className="underline underline-offset-2 hover:text-foreground"
+                  >
+                    İlk sayfaya dönün
                   </Link>
                 </>
               ) : (

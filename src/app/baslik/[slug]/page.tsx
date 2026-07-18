@@ -21,6 +21,7 @@ import { ProBadge } from "@/components/pro-badge";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { normalizeLocale, isLocale, type Locale } from "@/lib/locales";
 import { buildReturnPath } from "@/lib/url";
+import { parsePage } from "@/lib/validate";
 import { cn } from "@/lib/utils";
 
 // Canlı DB verisi gösterir; build sırasında prerender edilmez (PGlite
@@ -119,7 +120,7 @@ export default async function TopicPage({
   // birleştirdiğinden SQL sayfalaması sırayı bozar — sorgu seviyesine
   // geçiş, skorun SQL'e taşınması refactor'ıyla birlikte (spec notu).
   const EXPERIENCE_PAGE_SIZE = 20;
-  const expPage = Math.max(1, Number.parseInt(sayfa ?? "1", 10) || 1);
+  const expPage = parsePage(sayfa);
   const hasMoreExperiences =
     filteredExperiences.length > expPage * EXPERIENCE_PAGE_SIZE;
   const experiences = filteredExperiences.slice(
@@ -138,8 +139,14 @@ export default async function TopicPage({
     }
   }
 
-  // bildirildi tek seferlik flash — returnPath'e taşınmaz.
-  const returnPath = buildReturnPath(`/baslik/${slug}`, { sirala, amac: activePurpose });
+  // bildirildi tek seferlik flash — returnPath'e taşınmaz. sayfa
+  // taşınır: 2+. sayfadan Çevir/Bildir yapan kullanıcı aynı dilime
+  // dönsün, çeviri bloğu görünür kalsın (review bulgusu).
+  const returnPath = buildReturnPath(`/baslik/${slug}`, {
+    sirala,
+    amac: activePurpose,
+    sayfa: expPage > 1 ? String(expPage) : undefined,
+  });
 
   const [cevirType, cevirId] = cevir ? cevir.split(":") : [undefined, undefined];
   const cevirLocale = dil && isLocale(dil) ? dil : undefined;
@@ -258,8 +265,13 @@ export default async function TopicPage({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-xl font-semibold">Deneyimler</h2>
           <div className="flex items-center gap-3 text-sm">
+            {/* Sıralama değişince sayfa 1'e dönülür ama amaç filtresi
+                korunur (review bulgusu: sort linkleri amac'ı düşürüyordu). */}
             <Link
-              href={`/baslik/${topic.slug}?sirala=yeni`}
+              href={buildReturnPath(`/baslik/${topic.slug}`, {
+                sirala: "yeni",
+                amac: activePurpose,
+              })}
               className={cn(
                 "hover:underline",
                 sort === "yeni" ? "font-semibold text-foreground" : "text-muted-foreground",
@@ -268,7 +280,10 @@ export default async function TopicPage({
               En yeni
             </Link>
             <Link
-              href={`/baslik/${topic.slug}?sirala=oy`}
+              href={buildReturnPath(`/baslik/${topic.slug}`, {
+                sirala: "oy",
+                amac: activePurpose,
+              })}
               className={cn(
                 "hover:underline",
                 sort === "oy" ? "font-semibold text-foreground" : "text-muted-foreground",
@@ -306,6 +321,20 @@ export default async function TopicPage({
         )}
         {filteredExperiences.length === 0 ? (
           <p className="text-muted-foreground">Henüz deneyim paylaşılmamış.</p>
+        ) : experiences.length === 0 ? (
+          // Aralık dışı ?sayfa= — sessiz boşluk yerine yönlendirme.
+          <p className="text-muted-foreground">
+            Bu sayfada kayıt yok.{" "}
+            <Link
+              href={buildReturnPath(`/baslik/${topic.slug}`, {
+                sirala,
+                amac: activePurpose,
+              })}
+              className="underline underline-offset-2"
+            >
+              İlk sayfaya dönün
+            </Link>
+          </p>
         ) : (
           experiences.map((experience) => (
             <Card key={experience.id}>

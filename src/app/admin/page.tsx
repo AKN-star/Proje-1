@@ -322,6 +322,11 @@ export default async function AdminPage({
                   {!user.bannedAt && user.role !== "admin" && user.role !== "mod" && (
                     <form action={banUser}>
                       <input type="hidden" name="userId" value={user.id} />
+                      <input
+                        type="hidden"
+                        name="returnPath"
+                        value={`/admin?kullanici=${encodeURIComponent(kullanici ?? "")}`}
+                      />
                       <button
                         type="submit"
                         className={cn(buttonVariants({ variant: "destructive", size: "sm" }))}
