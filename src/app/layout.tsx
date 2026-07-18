@@ -30,6 +30,9 @@ export default function RootLayout({
         {children}
         <footer className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-4 px-6 py-8 text-xs text-neutral-500">
           <span>© {new Date().getFullYear()} {brand.name}</span>
+          <Link href="/nasil-calisir" className="underline-offset-2 hover:underline">
+            Nasıl çalışır?
+          </Link>
           <Link href="/kvkk" className="underline-offset-2 hover:underline">
             KVKK Aydınlatma
           </Link>
