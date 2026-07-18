@@ -31,7 +31,10 @@ export default async function Home({
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-6 py-12">
       {session?.user && (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Link href="/profil" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            Profilim
+          </Link>
           <Link href="/ayarlar" className={buttonVariants({ variant: "outline", size: "sm" })}>
             Ayarlar
           </Link>
