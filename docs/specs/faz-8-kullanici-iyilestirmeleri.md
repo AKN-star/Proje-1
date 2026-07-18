@@ -46,6 +46,31 @@ sözleşme değişikliği users.email_optout (Veri Modeli güncellendi).
 - T6 — tema düğmesi: ThemeToggle client bileşeni + layout inline
   script; tercih localStorage'da ("system" varsayılan).
 
+## Kapanış notları
+- Final review (8 açı) 10 bulgu kapatıldı: anonimleştirme artık
+  verificationToken'ları (PII) ve bekleyen rozet başvurularını da
+  temizliyor; yanıt bildirimi next/server after() ile sıcak yoldan
+  çıktı ve karar guard'ları lib'de (notifyQuestionOwner); suggest
+  join'ine tr locale filtresi; <html suppressHydrationWarning> (tema
+  script'i); tema sistem modunda OS değişimini dinler; escapeHtml tek
+  kopya; rapor redirect'i ?amac=/?sirala= bağlamını korur; başarısız
+  kaldırmada yeşil banner yok.
+- Bilinçli kararlar: profil eylemlerinde onboarding/ban guard'ı YOK
+  (KVKK hakkı banlıya da tanınır — dosyada açık yorum); banlı kullanıcı
+  hesap silip aynı e-postayla yeniden kayıt olabilir (ban hesaba
+  bağlıdır, e-posta zaten serbest — kabul edildi); kendi sorusunu
+  kaldıran kullanıcı altındaki yanıtları da erişilmez kılar (admin
+  mod_restore ile geri açabilir); kuyruktan sonradan onaylanan yanıt
+  bildirim üretmez; profil listesindeki yanıt linki, sorusu kaldırıldıysa
+  404'e gider (durum rozeti görünür kalır).
+- SAPMA: T1a 251, T1b 310 satır commit (200 yasası); migration
+  commit'lerinin drizzle-kit üretimi snapshot satırları (0007/0008)
+  muaf sayılıyor — bu muafiyet burada açıkça kayda geçirildi.
+- Kuyruğa alınan cleanup (davranış değişmez): requireOnboardedUser
+  guard yardımcısı (3 review'dur işaretleniyor), formatDate/flash
+  banner/PGlite test kurulumu tekilleştirmesi, tema karar ifadesinin
+  tek kaynağa bağlanması, TİTCK ölçeğinde suggest için SQL ön filtresi.
+
 ## Bitti tanımı
 lint+typecheck+vitest yeşil; CI yeşil; canlı: profil sayfasında kendi
 içeriği görünür ve kaldırılabilir, hesap silme oturumu kapatıp anonim
