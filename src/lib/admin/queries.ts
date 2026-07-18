@@ -4,6 +4,7 @@
  */
 import { and, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { escapeLike } from "@/lib/validate";
 import type { Db } from "@/db";
 import {
   answers,
@@ -185,8 +186,7 @@ const USER_SEARCH_LIMIT = 20;
 export async function searchUsers(db: Db, q: string): Promise<AdminUserItem[]> {
   const trimmed = q.trim();
   if (!trimmed) return [];
-  const escaped = trimmed.replace(/[\\%_]/g, "\\$&");
-  const pattern = `%${escaped}%`;
+  const pattern = `%${escapeLike(trimmed)}%`;
 
   const rows = await db
     .select({

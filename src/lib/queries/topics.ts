@@ -15,6 +15,7 @@ import {
   users,
 } from "@/db/schema";
 import { getScores } from "@/lib/votes/vote";
+import { escapeLike } from "@/lib/validate";
 
 export interface TopicListItem {
   id: string;
@@ -32,7 +33,10 @@ export interface ListTopicsOptions {
   /** i18n eşleşmesi için locale (varsayılan 'tr'). */
   locale?: string;
   /** SQL sayfalaması (Faz 9 T2): verilirse limit+1 satır çekilir ve
-   * hasMore hesaplanabilsin diye çağıran fazlalığı keser. */
+   * hasMore hesaplanabilsin diye çağıran fazlalığı keser.
+   * UYARI: `q` ile birlikte KULLANILMAZ — ilgililik sıralaması
+   * (searchRank) JS'te limit SONRASI koştuğundan sayfalama alfabetik
+   * keser ve tam eşleşme sayfa dışında kalabilir. */
   limit?: number;
   offset?: number;
 }
@@ -74,10 +78,7 @@ export async function listTopics(
 
   const whereClauses = [eq(topics.status, "active")];
   if (q) {
-    // LIKE jokerleri kullanıcı girdisinden kaçırılır (%%% tüm tabloyu
-    // döndürmesin); enjeksiyon yok (parametreli) ama semantik korunur.
-    const escaped = q.replace(/[\\%_]/g, "\\$&");
-    const pattern = `%${escaped}%`;
+    const pattern = `%${escapeLike(q)}%`;
     whereClauses.push(
       or(
         ilike(topics.canonicalName, pattern),
@@ -87,7 +88,7 @@ export async function listTopics(
     );
   }
 
-  const rows = await db
+  const baseQuery = db
     .select({
       id: topics.id,
       slug: topics.slug,
@@ -117,8 +118,12 @@ export async function listTopics(
       drugDetails.activeIngredient,
     )
     .orderBy(asc(topics.canonicalName))
-    .limit(options.limit ?? Number.MAX_SAFE_INTEGER)
-    .offset(options.offset ?? 0);
+    .$dynamic();
+
+  const rows =
+    options.limit !== undefined
+      ? await baseQuery.limit(options.limit).offset(options.offset ?? 0)
+      : await baseQuery;
 
   const items = rows.map((row) => ({
     ...row,
@@ -137,6 +142,45 @@ export async function listTopics(
   }
 
   return items;
+}
+
+/**
+ * Ana sayfa "Öne çıkan başlıklar" (Faz 9 T6): yayınlanmış deneyim
+ * sayısına göre gerçek top-N — sayfalanmış listeden TÜRETİLMEZ
+ * (alfabetik ilk sayfa vitrin için yanıltıcı olur, review bulgusu).
+ */
+export async function listFeaturedTopics(
+  db: Db,
+  limit = 5,
+): Promise<{ id: string; slug: string; name: string; experienceCount: number }[]> {
+  const rows = await db
+    .select({
+      id: topics.id,
+      slug: topics.slug,
+      canonicalName: topics.canonicalName,
+      name: topicI18n.name,
+      experienceCount: count(experiences.id),
+    })
+    .from(topics)
+    .leftJoin(
+      topicI18n,
+      and(eq(topicI18n.topicId, topics.id), eq(topicI18n.locale, "tr")),
+    )
+    .innerJoin(
+      experiences,
+      and(eq(experiences.topicId, topics.id), eq(experiences.status, "published")),
+    )
+    .where(eq(topics.status, "active"))
+    .groupBy(topics.id, topics.slug, topics.canonicalName, topicI18n.name)
+    .orderBy(desc(count(experiences.id)))
+    .limit(limit);
+
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name ?? row.canonicalName,
+    experienceCount: Number(row.experienceCount),
+  }));
 }
 
 /** generateMetadata için tek satırlık hafif sorgu — deneyim/skor

@@ -12,6 +12,7 @@ import {
   answers,
   badgeRequests,
   experiences,
+  moderationLog,
   questions,
   reports,
   topics,
@@ -20,6 +21,7 @@ import {
 
 export type RateLimitKind =
   | "experience"
+  | "experienceEdit"
   | "question"
   | "answer"
   | "report"
@@ -37,6 +39,10 @@ const MINUTE = 60 * 1000;
  * farkı taşır ki config bir pencere vaat edip etmediğini yalan söylemesin. */
 export const RATE_LIMITS = {
   experience: { windowMs: HOUR, max: 5 },
+  // Düzenleme insert üretmez — pencere moderation_log'daki 'user_edit'
+  // denetim kayıtlarından sayılır (her düzenleme ücretli moderate()
+  // çağrısıdır; sınırsız bırakılamaz — Faz 9 review bulgusu).
+  experienceEdit: { windowMs: HOUR, max: 10 },
   question: { windowMs: HOUR, max: 5 },
   answer: { windowMs: HOUR, max: 20 },
   report: { windowMs: HOUR, max: 10 },
@@ -104,6 +110,20 @@ export async function checkRateLimit(
         .select({ total: count() })
         .from(reports)
         .where(and(eq(reports.reporterId, userId), gt(reports.createdAt, since)));
+      total = row.total;
+      break;
+    }
+    case "experienceEdit": {
+      const [row] = await db
+        .select({ total: count() })
+        .from(moderationLog)
+        .where(
+          and(
+            eq(moderationLog.actorId, userId),
+            eq(moderationLog.action, "user_edit"),
+            gt(moderationLog.createdAt, since),
+          ),
+        );
       total = row.total;
       break;
     }

@@ -167,6 +167,12 @@ export async function updateExperience(formData: FormData): Promise<void> {
     redirect(`${returnPath}?hata=_root`);
   }
 
+  // Her düzenleme ücretli moderate() çağrısıdır — pencere user_edit
+  // denetim kayıtlarından sayılır (Faz 9 review bulgusu).
+  if (!(await checkRateLimit(db, session.user.id, "experienceEdit"))) {
+    redirect(`${returnPath}?hata=limit`);
+  }
+
   // Sahiplik (ve topic slug'ı) çekirdek sorgusuyla doğrulanır.
   const existing = await getOwnExperience(db, session.user.id, experienceId);
   if (!existing) {
@@ -223,6 +229,15 @@ export async function updateExperience(formData: FormData): Promise<void> {
       actorType: "ai",
     });
   }
+
+  // Denetim izi + experienceEdit rate-limit sayacı (her başarılı edit).
+  await logModeration(db, {
+    targetType: "experience",
+    targetId: experienceId,
+    action: "user_edit",
+    actorType: "user",
+    actorId: session.user.id,
+  });
 
   await recalcTopicStats(db, existing.topicId);
 

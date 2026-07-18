@@ -258,7 +258,13 @@ export const moderationLog = pgTable("moderation_log", {
   action: text("action")
     .notNull()
     .$type<
-      "ai_flag" | "ai_block" | "ai_timeout" | "mod_remove" | "mod_restore" | "mod_ban"
+      | "ai_flag"
+      | "ai_block"
+      | "ai_timeout"
+      | "mod_remove"
+      | "mod_restore"
+      | "mod_ban"
+      | "user_edit"
     >(),
   detail: jsonb("detail").$type<{ reasons?: string[]; note?: string }>(),
   actorType: text("actor_type").notNull().$type<"ai" | "user">(),

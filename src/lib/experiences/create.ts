@@ -154,6 +154,10 @@ export async function updateOwnExperience(
     })
     .where(eq(experiences.id, experienceId));
 
+  // BİLİNEN SINIR (neon-http transaction yok — submitExperience'taki
+  // SAPMA notuyla aynı sınıf): delete ile insert arasında hata olursa
+  // yan etkiler eksik kalabilir; kullanıcı formu yeniden gönderince
+  // düzelir. Driver websocket'e geçince transaction'a alınır.
   await db
     .delete(experienceSideEffects)
     .where(eq(experienceSideEffects.experienceId, experienceId));
