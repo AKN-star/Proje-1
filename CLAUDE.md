@@ -6,8 +6,10 @@
 
 ## Durum
 
-- **Aktif faz:** Faz 0-7 master'a merge edildi (PR #1-#10, CI yeşil) —
-  ana plan kod tarafı tamam; kalanlar insan adımları + onay kapıları.
+- **Aktif faz:** Faz 0-8 master'a merge edildi (PR #1-#13, CI yeşil) —
+  kod tarafı tamam (Faz 8: profil/hesap silme, yanıt bildirimi,
+  nasıl-çalışır, amaç filtresi, yazım önerisi, tema); kalanlar insan
+  adımları + onay kapıları.
 - Bekleyen insan adımları: Neon + Vercel hesapları (canlı yayın için);
   Vercel'e ANTHROPIC_API_KEY; prod'da admin:grant; opsiyonel Resend
   anahtarı; next-intl onayı (UI i18n → Faz 5.1); Google Cloud OAuth
