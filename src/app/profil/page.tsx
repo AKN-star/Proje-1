@@ -21,6 +21,12 @@ const KIND_LABELS: Record<string, string> = {
   answer: "Yanıt",
 };
 
+const EDIT_PATHS: Record<string, string> = {
+  experience: "deneyim-duzenle",
+  question: "soru-duzenle",
+  answer: "yanit-duzenle",
+};
+
 const STATUS_LABELS: Record<string, string> = {
   published: "Yayında",
   pending: "İncelemede",
@@ -104,14 +110,12 @@ export default async function ProfilPage({
                 <span>{formatDate(item.createdAt)}</span>
                 {item.status !== "removed" && (
                   <div className="flex items-center gap-2">
-                    {item.kind === "experience" && (
-                      <Link
-                        href={`/deneyim-duzenle/${item.id}`}
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                      >
-                        Düzenle
-                      </Link>
-                    )}
+                    <Link
+                      href={`/${EDIT_PATHS[item.kind]}/${item.id}`}
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                    >
+                      Düzenle
+                    </Link>
                     <form action={removeMyContent}>
                       <input type="hidden" name="kind" value={item.kind} />
                       <input type="hidden" name="targetId" value={item.id} />
