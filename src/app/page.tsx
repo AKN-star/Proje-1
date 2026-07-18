@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { brand } from "@/config/brand";
 import { getDb } from "@/db";
 import { listTopics } from "@/lib/queries/topics";
+import { suggestTopics } from "@/lib/queries/suggest";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,9 @@ export default async function Home({
   const db = await getDb();
   const session = await auth();
   const topicList = await listTopics(db, { q, locale: "tr" });
+  // Yalnız sıfır sonuçta yazım önerisi aranır (Faz 8 T5).
+  const suggestions =
+    q && topicList.length === 0 ? await suggestTopics(db, q) : [];
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-6 py-12">
@@ -67,21 +71,39 @@ export default async function Home({
 
       <div className="flex flex-col gap-3">
         {topicList.length === 0 ? (
-          <p className="text-center text-muted-foreground">
-            {q ? (
-              <>
-                &quot;{q}&quot; için sonuç bulunamadı.{" "}
-                <Link
-                  href="/baslik-oner"
-                  className="underline underline-offset-2 hover:text-foreground"
-                >
-                  Bu başlığı önerin
-                </Link>
-              </>
-            ) : (
-              "Henüz konu eklenmemiş."
+          <div className="flex flex-col gap-2 text-center text-muted-foreground">
+            <p>
+              {q ? (
+                <>
+                  &quot;{q}&quot; için sonuç bulunamadı.{" "}
+                  <Link
+                    href="/baslik-oner"
+                    className="underline underline-offset-2 hover:text-foreground"
+                  >
+                    Bu başlığı önerin
+                  </Link>
+                </>
+              ) : (
+                "Henüz konu eklenmemiş."
+              )}
+            </p>
+            {suggestions.length > 0 && (
+              <p>
+                Şunu mu demek istediniz?{" "}
+                {suggestions.map((s, i) => (
+                  <span key={s.slug}>
+                    {i > 0 && ", "}
+                    <Link
+                      href={`/baslik/${s.slug}`}
+                      className="underline underline-offset-2 hover:text-foreground"
+                    >
+                      {s.name}
+                    </Link>
+                  </span>
+                ))}
+              </p>
             )}
-          </p>
+          </div>
         ) : (
           topicList.map((topic) => (
             <Link key={topic.id} href={`/baslik/${topic.slug}`}>
