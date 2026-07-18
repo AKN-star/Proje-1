@@ -18,8 +18,10 @@ import { listQuestions } from "@/lib/qa/questions";
 import { getFreshTranslation } from "@/lib/translations/cache";
 import { TranslateButton, TranslationBlock } from "@/components/translation";
 import { ProBadge } from "@/components/pro-badge";
+import { CopyLinkButton } from "@/components/copy-link-button";
 import { normalizeLocale, isLocale, type Locale } from "@/lib/locales";
 import { buildReturnPath } from "@/lib/url";
+import { parsePage } from "@/lib/validate";
 import { cn } from "@/lib/utils";
 
 // Canlı DB verisi gösterir; build sırasında prerender edilmez (PGlite
@@ -86,10 +88,11 @@ export default async function TopicPage({
     dil?: string;
     cevirHata?: string;
     amac?: string;
+    sayfa?: string;
   }>;
 }) {
   const { slug } = await params;
-  const { sirala, bildirildi, cevir, dil, cevirHata, amac } = await searchParams;
+  const { sirala, bildirildi, cevir, dil, cevirHata, amac, sayfa } = await searchParams;
   const sort: TopicSort = sirala === "oy" ? "oy" : "yeni";
 
   const db = await getDb();
@@ -109,9 +112,21 @@ export default async function TopicPage({
     a.localeCompare(b, "tr"),
   );
   const activePurpose = amac && purposes.includes(amac) ? amac : undefined;
-  const experiences = activePurpose
+  const filteredExperiences = activePurpose
     ? allExperiences.filter((e) => e.purpose === activePurpose)
     : allExperiences;
+
+  // Render dilimlemesi (Faz 9 T2): oy sıralaması skorları JS'te
+  // birleştirdiğinden SQL sayfalaması sırayı bozar — sorgu seviyesine
+  // geçiş, skorun SQL'e taşınması refactor'ıyla birlikte (spec notu).
+  const EXPERIENCE_PAGE_SIZE = 20;
+  const expPage = parsePage(sayfa);
+  const hasMoreExperiences =
+    filteredExperiences.length > expPage * EXPERIENCE_PAGE_SIZE;
+  const experiences = filteredExperiences.slice(
+    (expPage - 1) * EXPERIENCE_PAGE_SIZE,
+    expPage * EXPERIENCE_PAGE_SIZE,
+  );
 
   // Girişli + onboarded + banlı olmayan kullanıcının çeviri locale
   // tercihi; aksi halde Çevir butonu hiç gösterilmez (action'daki
@@ -124,8 +139,14 @@ export default async function TopicPage({
     }
   }
 
-  // bildirildi tek seferlik flash — returnPath'e taşınmaz.
-  const returnPath = buildReturnPath(`/baslik/${slug}`, { sirala, amac: activePurpose });
+  // bildirildi tek seferlik flash — returnPath'e taşınmaz. sayfa
+  // taşınır: 2+. sayfadan Çevir/Bildir yapan kullanıcı aynı dilime
+  // dönsün, çeviri bloğu görünür kalsın (review bulgusu).
+  const returnPath = buildReturnPath(`/baslik/${slug}`, {
+    sirala,
+    amac: activePurpose,
+    sayfa: expPage > 1 ? String(expPage) : undefined,
+  });
 
   const [cevirType, cevirId] = cevir ? cevir.split(":") : [undefined, undefined];
   const cevirLocale = dil && isLocale(dil) ? dil : undefined;
@@ -175,7 +196,10 @@ export default async function TopicPage({
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-3xl font-semibold tracking-tight">{displayName}</h1>
-          <Badge variant="secondary">{TYPE_LABELS[topic.type] ?? topic.type}</Badge>
+          <div className="flex items-center gap-2">
+            <CopyLinkButton />
+            <Badge variant="secondary">{TYPE_LABELS[topic.type] ?? topic.type}</Badge>
+          </div>
         </div>
         {detailParts.length > 0 && (
           <p className="text-muted-foreground">{detailParts.join(" · ")}</p>
@@ -241,8 +265,13 @@ export default async function TopicPage({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-xl font-semibold">Deneyimler</h2>
           <div className="flex items-center gap-3 text-sm">
+            {/* Sıralama değişince sayfa 1'e dönülür ama amaç filtresi
+                korunur (review bulgusu: sort linkleri amac'ı düşürüyordu). */}
             <Link
-              href={`/baslik/${topic.slug}?sirala=yeni`}
+              href={buildReturnPath(`/baslik/${topic.slug}`, {
+                sirala: "yeni",
+                amac: activePurpose,
+              })}
               className={cn(
                 "hover:underline",
                 sort === "yeni" ? "font-semibold text-foreground" : "text-muted-foreground",
@@ -251,7 +280,10 @@ export default async function TopicPage({
               En yeni
             </Link>
             <Link
-              href={`/baslik/${topic.slug}?sirala=oy`}
+              href={buildReturnPath(`/baslik/${topic.slug}`, {
+                sirala: "oy",
+                amac: activePurpose,
+              })}
               className={cn(
                 "hover:underline",
                 sort === "oy" ? "font-semibold text-foreground" : "text-muted-foreground",
@@ -287,8 +319,22 @@ export default async function TopicPage({
             ))}
           </div>
         )}
-        {experiences.length === 0 ? (
+        {filteredExperiences.length === 0 ? (
           <p className="text-muted-foreground">Henüz deneyim paylaşılmamış.</p>
+        ) : experiences.length === 0 ? (
+          // Aralık dışı ?sayfa= — sessiz boşluk yerine yönlendirme.
+          <p className="text-muted-foreground">
+            Bu sayfada kayıt yok.{" "}
+            <Link
+              href={buildReturnPath(`/baslik/${topic.slug}`, {
+                sirala,
+                amac: activePurpose,
+              })}
+              className="underline underline-offset-2"
+            >
+              İlk sayfaya dönün
+            </Link>
+          </p>
         ) : (
           experiences.map((experience) => (
             <Card key={experience.id}>
@@ -422,6 +468,34 @@ export default async function TopicPage({
               </CardContent>
             </Card>
           ))
+        )}
+        {(expPage > 1 || hasMoreExperiences) && (
+          <div className="flex items-center justify-center gap-4 text-sm">
+            {expPage > 1 && (
+              <Link
+                href={buildReturnPath(`/baslik/${topic.slug}`, {
+                  sirala,
+                  amac: activePurpose,
+                  sayfa: expPage === 2 ? undefined : String(expPage - 1),
+                })}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                ← Önceki
+              </Link>
+            )}
+            {hasMoreExperiences && (
+              <Link
+                href={buildReturnPath(`/baslik/${topic.slug}`, {
+                  sirala,
+                  amac: activePurpose,
+                  sayfa: String(expPage + 1),
+                })}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                Sonraki →
+              </Link>
+            )}
+          </div>
         )}
       </div>
 

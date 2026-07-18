@@ -7,7 +7,9 @@ import {
   listModerationQueue,
   listOpenReports,
   listPendingTopicProposals,
+  searchUsers,
 } from "@/lib/admin/queries";
+import { Input } from "@/components/ui/input";
 import { REPORT_REASONS } from "@/lib/reports/report";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,7 +53,11 @@ function formatDate(date: Date): string {
   }).format(date);
 }
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kullanici?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) {
     notFound();
@@ -62,6 +68,9 @@ export default async function AdminPage() {
   if (!actor) {
     notFound();
   }
+
+  const { kullanici } = await searchParams;
+  const userResults = kullanici ? await searchUsers(db, kullanici) : [];
 
   const [queue, openReports, pendingTopics, pendingBadges] = await Promise.all([
     listModerationQueue(db),
@@ -267,6 +276,69 @@ export default async function AdminPage() {
             </Card>
           ))
         )}
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-xl font-semibold">Kullanıcılar</h2>
+        <form method="GET" className="flex max-w-md gap-2">
+          <Input
+            type="search"
+            name="kullanici"
+            defaultValue={kullanici ?? ""}
+            placeholder="Takma ad veya e-posta ara..."
+            aria-label="Kullanıcı ara"
+          />
+          <button
+            type="submit"
+            className={cn(buttonVariants({ variant: "default", size: "sm" }))}
+          >
+            Ara
+          </button>
+        </form>
+        {kullanici &&
+          (userResults.length === 0 ? (
+            <p className="text-muted-foreground">Kullanıcı bulunamadı.</p>
+          ) : (
+            userResults.map((user) => (
+              <Card key={user.id}>
+                <CardHeader>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <CardTitle className="text-base">@{user.username}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{user.role}</Badge>
+                      {user.bannedAt && (
+                        <Badge variant="outline" className="border-red-300 text-red-700 dark:border-red-800 dark:text-red-400">
+                          Banlı
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">
+                    {user.email} · {user.experienceCount} deneyim ·{" "}
+                    {user.questionCount} soru · {user.answerCount} yanıt
+                  </span>
+                  {!user.bannedAt && user.role !== "admin" && user.role !== "mod" && (
+                    <form action={banUser}>
+                      <input type="hidden" name="userId" value={user.id} />
+                      <input
+                        type="hidden"
+                        name="returnPath"
+                        value={`/admin?kullanici=${encodeURIComponent(kullanici ?? "")}`}
+                      />
+                      <button
+                        type="submit"
+                        className={cn(buttonVariants({ variant: "destructive", size: "sm" }))}
+                      >
+                        Banla
+                      </button>
+                    </form>
+                  )}
+                </CardContent>
+              </Card>
+            ))
+          ))}
       </section>
 
       <section className="flex flex-col gap-4">

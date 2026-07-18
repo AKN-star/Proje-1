@@ -113,16 +113,26 @@ export default async function ProfilPage({
               <CardContent className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>{formatDate(item.createdAt)}</span>
                 {item.status !== "removed" && (
-                  <form action={removeMyContent}>
-                    <input type="hidden" name="kind" value={item.kind} />
-                    <input type="hidden" name="targetId" value={item.id} />
-                    <button
-                      type="submit"
-                      className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                    >
-                      Kaldır
-                    </button>
-                  </form>
+                  <div className="flex items-center gap-2">
+                    {item.kind === "experience" && (
+                      <Link
+                        href={`/deneyim-duzenle/${item.id}`}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                      >
+                        Düzenle
+                      </Link>
+                    )}
+                    <form action={removeMyContent}>
+                      <input type="hidden" name="kind" value={item.kind} />
+                      <input type="hidden" name="targetId" value={item.id} />
+                      <button
+                        type="submit"
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                      >
+                        Kaldır
+                      </button>
+                    </form>
+                  </div>
                 )}
               </CardContent>
             </Card>

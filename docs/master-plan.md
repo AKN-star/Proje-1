@@ -64,7 +64,7 @@ votes                  user_id + target_type('experience'|'answer') + target_id 
                        value CHECK(-1|+1)
 reports                id, reporter_id FK, target_type, target_id, reason(enum), unique(reporter_id, target_type, target_id),
                        status('open'|'resolved'), created_at
-moderation_log         id, target_type, target_id, action('ai_flag'|'ai_block'|'ai_timeout'|'mod_remove'|'mod_restore'|'mod_ban'),
+moderation_log         id, target_type, target_id, action('ai_flag'|'ai_block'|'ai_timeout'|'mod_remove'|'mod_restore'|'mod_ban'|'user_edit' [Faz 9: düzenleme denetim izi + edit rate-limit sayacı]),
                        detail(jsonb: AI gerekçesi), actor_type('ai'|'user'), actor_id(FK users|null), created_at
 translations           target_type, target_id, field, locale, text, model, source_hash, created_at
                        -- unique(target_type, target_id, field, locale); source_hash bayatlık kontrolü
@@ -121,6 +121,9 @@ Rozet başvuru formu → Resend ile **hepteqsadeceteq@gmail.com**'a mail + admin
 
 ### Faz 8 — Kullanıcı deneyimi iyileştirmeleri (plan sonrası ek, 2026-07-18)
 /profil (kendi içeriğini görme + kaldırma) + hesap silme (anonimleştirme); yanıt bildirimi e-postası (+ email_optout tercihi); /nasil-calisir güven sayfası; topic sayfasında amaç filtresi; sıfır sonuçta yazım önerisi; karanlık mod düğmesi. Ayrıntı: docs/specs/faz-8-kullanici-iyilestirmeleri.md
+
+### Faz 9 — Büyüme hazırlığı (plan sonrası ek, 2026-07-18)
+Sayfalama + performans index'leri (migration 0009 — kolon sözleşmesi değişmez); deneyim düzenleme (yeniden moderasyonlu); schema.org (QAPage/WebSite; ilaç sayfasına YMYL gereği rating işaretlemesi konmaz); admin kullanıcı yönetimi; paylaş linki + next/og görseli; ana sayfa boş durum bölümleri. Ayrıntı: docs/specs/faz-9-buyume-hazirligi.md
 
 ### Faz 7 — Yayın sertleşmesi
 TİTCK tam ilaç listesi import script'i (önce lisans/kullanım şartı araştırması); SEO (metadata, sitemap, OG) + **noindex ve deployment protection kaldırılır**; Sentry; rate limiting (Postgres-içi sliding window); KVKK aydınlatma + açık rıza metinleri + kullanım şartları (tıbbi sorumluluk reddi dahil); Playwright e2e ana akışlar; performans; domain bağlama.

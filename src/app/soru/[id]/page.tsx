@@ -12,6 +12,8 @@ import { submitAnswer, voteAnswer } from "@/app/actions/qa";
 import { getFreshTranslation } from "@/lib/translations/cache";
 import { TranslateButton, TranslationBlock } from "@/components/translation";
 import { ProBadge } from "@/components/pro-badge";
+import { JsonLd } from "@/components/json-ld";
+import { CopyLinkButton } from "@/components/copy-link-button";
 import { normalizeLocale, isLocale, type Locale } from "@/lib/locales";
 import { UUID_RE } from "@/lib/validate";
 import { cn } from "@/lib/utils";
@@ -150,8 +152,31 @@ export default async function SoruPage({
 
   const errorMessage = hata ? ERROR_MESSAGES[hata] ?? ERROR_MESSAGES._root : null;
 
+  // QAPage JSON-LD (Faz 9 T4). YMYL temkinli: yalnız soru-cevap yapısı
+  // işaretlenir, tıbbi iddia/derecelendirme işaretlemesi yok (spec).
+  const qaJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "QAPage",
+    mainEntity: {
+      "@type": "Question",
+      name: question.title,
+      text: question.body ?? question.title,
+      answerCount: answers.length,
+      author: { "@type": "Person", name: question.authorUsername },
+      dateCreated: question.createdAt.toISOString(),
+      suggestedAnswer: answers.map((answer) => ({
+        "@type": "Answer",
+        text: answer.body,
+        author: { "@type": "Person", name: answer.authorUsername },
+        dateCreated: answer.createdAt.toISOString(),
+        upvoteCount: answer.score,
+      })),
+    },
+  };
+
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-8 px-6 py-12">
+      <JsonLd data={qaJsonLd} />
       <div className="flex flex-col gap-1">
         <Link
           href={`/baslik/${question.topicSlug}`}
@@ -166,6 +191,7 @@ export default async function SoruPage({
             <ProBadge proBadge={question.authorProBadge} />
           </span>
           <span>{formatDate(question.createdAt)}</span>
+          <CopyLinkButton />
         </div>
         {question.body && (
           <p className="mt-2 whitespace-pre-wrap text-sm">{question.body}</p>

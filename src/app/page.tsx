@@ -2,8 +2,12 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { brand } from "@/config/brand";
 import { getDb } from "@/db";
-import { listTopics } from "@/lib/queries/topics";
+import { listFeaturedTopics, listTopics } from "@/lib/queries/topics";
+import { parsePage } from "@/lib/validate";
 import { suggestTopics } from "@/lib/queries/suggest";
+import { listRecentQuestions } from "@/lib/qa/questions";
+import { siteUrl } from "@/lib/launch";
+import { JsonLd } from "@/components/json-ld";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,21 +23,54 @@ const TYPE_LABELS: Record<string, string> = {
   treatment: "Tedavi",
 };
 
+const PAGE_SIZE = 30;
+
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; sayfa?: string }>;
 }) {
-  const { q } = await searchParams;
+  const { q, sayfa } = await searchParams;
   const db = await getDb();
   const session = await auth();
-  const topicList = await listTopics(db, { q, locale: "tr" });
+
+  // SQL sayfalaması yalnız aramasız listede (Faz 9 T2): arama sonuçları
+  // ilgililiğe göre JS'te sıralandığından ve küçük olduğundan sayfalanmaz.
+  const page = parsePage(sayfa);
+  const rawList = await listTopics(db, {
+    q,
+    locale: "tr",
+    ...(q ? {} : { limit: PAGE_SIZE + 1, offset: (page - 1) * PAGE_SIZE }),
+  });
+  const hasMore = !q && rawList.length > PAGE_SIZE;
+  const topicList = hasMore ? rawList.slice(0, PAGE_SIZE) : rawList;
   // Yalnız sıfır sonuçta yazım önerisi aranır (Faz 8 T5).
   const suggestions =
     q && topicList.length === 0 ? await suggestTopics(db, q) : [];
 
+  // Boş durum bölümleri (Faz 9 T6): yalnız aramasız ilk sayfada.
+  // Öne çıkanlar sayfalanmış listeden TÜRETİLMEZ — gerçek top-5 için
+  // ayrı sorgu (review bulgusu: alfabetik ilk sayfa vitrin olamaz).
+  const showHighlights = !q && page === 1;
+  const [featured, recentQuestions] = showHighlights
+    ? await Promise.all([listFeaturedTopics(db, 5), listRecentQuestions(db, 5)])
+    : [[], []];
+
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-6 py-12">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: brand.name,
+          url: siteUrl(),
+          potentialAction: {
+            "@type": "SearchAction",
+            target: `${siteUrl()}/?q={search_term_string}`,
+            "query-input": "required name=search_term_string",
+          },
+        }}
+      />
       {session?.user && (
         <div className="flex justify-end gap-2">
           <Link href="/profil" className={buttonVariants({ variant: "outline", size: "sm" })}>
@@ -69,6 +106,49 @@ export default async function Home({
         </p>
       </div>
 
+      {showHighlights && (featured.length > 0 || recentQuestions.length > 0) && (
+        <div className="grid gap-6 sm:grid-cols-2">
+          {featured.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Öne çıkan başlıklar
+              </h2>
+              {featured.map((topic) => (
+                <Link
+                  key={topic.id}
+                  href={`/baslik/${topic.slug}`}
+                  className="flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-accent/50"
+                >
+                  <span>{topic.name}</span>
+                  <span className="text-muted-foreground">
+                    {topic.experienceCount} deneyim
+                  </span>
+                </Link>
+              ))}
+            </section>
+          )}
+          {recentQuestions.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Son sorular
+              </h2>
+              {recentQuestions.map((question) => (
+                <Link
+                  key={question.id}
+                  href={`/soru/${question.id}`}
+                  className="rounded-md border px-3 py-2 text-sm hover:bg-accent/50"
+                >
+                  <span className="line-clamp-1">{question.title}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {question.topicName}
+                  </span>
+                </Link>
+              ))}
+            </section>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-col gap-3">
         {topicList.length === 0 ? (
           <div className="flex flex-col gap-2 text-center text-muted-foreground">
@@ -81,6 +161,16 @@ export default async function Home({
                     className="underline underline-offset-2 hover:text-foreground"
                   >
                     Bu başlığı önerin
+                  </Link>
+                </>
+              ) : page > 1 ? (
+                <>
+                  Bu sayfada başlık yok.{" "}
+                  <Link
+                    href="/"
+                    className="underline underline-offset-2 hover:text-foreground"
+                  >
+                    İlk sayfaya dönün
                   </Link>
                 </>
               ) : (
@@ -125,6 +215,27 @@ export default async function Home({
           ))
         )}
       </div>
+
+      {!q && (page > 1 || hasMore) && (
+        <div className="flex items-center justify-center gap-4 text-sm">
+          {page > 1 && (
+            <Link
+              href={page === 2 ? "/" : `/?sayfa=${page - 1}`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              ← Önceki
+            </Link>
+          )}
+          {hasMore && (
+            <Link
+              href={`/?sayfa=${page + 1}`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Sonraki →
+            </Link>
+          )}
+        </div>
+      )}
     </main>
   );
 }

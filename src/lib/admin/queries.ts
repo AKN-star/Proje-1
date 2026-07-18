@@ -2,10 +2,20 @@
  * Admin kuyruğu sorguları (T4, faz-3-moderasyon-admin.md). Salt okunur;
  * yazma eylemleri src/app/actions/admin.ts'te.
  */
-import { and, desc, eq, inArray, or } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { escapeLike } from "@/lib/validate";
 import type { Db } from "@/db";
-import { experiences, moderationLog, reports, topicI18n, topics, users } from "@/db/schema";
+import {
+  answers,
+  experiences,
+  moderationLog,
+  questions,
+  reports,
+  topicI18n,
+  topics,
+  users,
+} from "@/db/schema";
 
 const proposers = alias(users, "proposers");
 
@@ -152,6 +162,81 @@ export async function listOpenReports(db: Db): Promise<OpenReportItem[]> {
     targetAuthorUsername: row.targetAuthorUsername ?? "anonim",
     targetTopicSlug: row.targetTopicSlug,
     targetStatus: row.targetStatus,
+  }));
+}
+
+export interface AdminUserItem {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+  bannedAt: Date | null;
+  experienceCount: number;
+  questionCount: number;
+  answerCount: number;
+}
+
+const USER_SEARCH_LIMIT = 20;
+
+/**
+ * Admin kullanıcı araması (Faz 9 T7): takma ad veya e-posta üzerinde
+ * ilike; içerik sayılarıyla döner. LIKE jokerleri kaçırılır (listTopics
+ * kalıbı). En fazla 20 sonuç.
+ */
+export async function searchUsers(db: Db, q: string): Promise<AdminUserItem[]> {
+  const trimmed = q.trim();
+  if (!trimmed) return [];
+  const pattern = `%${escapeLike(trimmed)}%`;
+
+  const rows = await db
+    .select({
+      id: users.id,
+      username: users.username,
+      email: users.email,
+      role: users.role,
+      bannedAt: users.bannedAt,
+    })
+    .from(users)
+    .where(or(ilike(users.username, pattern), ilike(users.email, pattern)))
+    .orderBy(users.email)
+    .limit(USER_SEARCH_LIMIT);
+
+  if (rows.length === 0) return [];
+
+  const userIds = rows.map((row) => row.id);
+  const [experienceCounts, questionCounts, answerCounts] = await Promise.all([
+    db
+      .select({ userId: experiences.userId, total: count() })
+      .from(experiences)
+      .where(inArray(experiences.userId, userIds))
+      .groupBy(experiences.userId),
+    db
+      .select({ userId: questions.userId, total: count() })
+      .from(questions)
+      .where(inArray(questions.userId, userIds))
+      .groupBy(questions.userId),
+    db
+      .select({ userId: answers.userId, total: count() })
+      .from(answers)
+      .where(inArray(answers.userId, userIds))
+      .groupBy(answers.userId),
+  ]);
+
+  const toMap = (list: { userId: string; total: number }[]) =>
+    new Map(list.map((row) => [row.userId, row.total]));
+  const expBy = toMap(experienceCounts);
+  const qBy = toMap(questionCounts);
+  const ansBy = toMap(answerCounts);
+
+  return rows.map((row) => ({
+    id: row.id,
+    username: row.username ?? "anonim",
+    email: row.email,
+    role: row.role,
+    bannedAt: row.bannedAt,
+    experienceCount: expBy.get(row.id) ?? 0,
+    questionCount: qBy.get(row.id) ?? 0,
+    answerCount: ansBy.get(row.id) ?? 0,
   }));
 }
 

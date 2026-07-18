@@ -143,6 +143,32 @@ export async function getQuestionMeta(
   return row ?? null;
 }
 
+export interface RecentQuestionItem {
+  id: string;
+  title: string;
+  topicName: string;
+  createdAt: Date;
+}
+
+/** Ana sayfa "Son sorular" bölümü (Faz 9 T6): yayında olan son N soru. */
+export async function listRecentQuestions(
+  db: Db,
+  limit = 5,
+): Promise<RecentQuestionItem[]> {
+  return db
+    .select({
+      id: questions.id,
+      title: questions.title,
+      topicName: topics.canonicalName,
+      createdAt: questions.createdAt,
+    })
+    .from(questions)
+    .innerJoin(topics, eq(topics.id, questions.topicId))
+    .where(and(eq(questions.status, "published"), eq(topics.status, "active")))
+    .orderBy(desc(questions.createdAt))
+    .limit(limit);
+}
+
 export interface QuestionDetail {
   id: string;
   title: string;

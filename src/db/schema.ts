@@ -6,6 +6,7 @@
 import {
   boolean,
   check,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -106,6 +107,9 @@ export const experiences = pgTable(
       "effectiveness_range",
       sql`${table.effectiveness} >= 1 AND ${table.effectiveness} <= 5`,
     ),
+    // Rate-limit COUNT'u ve topic sayfası listesi için (Faz 9 T1).
+    index("experiences_user_created_idx").on(table.userId, table.createdAt),
+    index("experiences_topic_status_idx").on(table.topicId, table.status),
   ],
 );
 
@@ -145,44 +149,52 @@ export const votes = pgTable(
   ],
 );
 
-export const questions = pgTable("questions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  topicId: uuid("topic_id")
-    .notNull()
-    .references(() => topics.id),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id),
-  title: text("title").notNull(),
-  body: text("body"),
-  lang: text("lang").notNull().default("tr"),
-  status: text("status")
-    .notNull()
-    .default("published")
-    .$type<"published" | "pending" | "flagged" | "removed">(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const questions = pgTable(
+  "questions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    topicId: uuid("topic_id")
+      .notNull()
+      .references(() => topics.id),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    title: text("title").notNull(),
+    body: text("body"),
+    lang: text("lang").notNull().default("tr"),
+    status: text("status")
+      .notNull()
+      .default("published")
+      .$type<"published" | "pending" | "flagged" | "removed">(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("questions_user_created_idx").on(table.userId, table.createdAt)],
+);
 
-export const answers = pgTable("answers", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  questionId: uuid("question_id")
-    .notNull()
-    .references(() => questions.id),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id),
-  body: text("body").notNull(),
-  lang: text("lang").notNull().default("tr"),
-  status: text("status")
-    .notNull()
-    .default("published")
-    .$type<"published" | "pending" | "flagged" | "removed">(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const answers = pgTable(
+  "answers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    questionId: uuid("question_id")
+      .notNull()
+      .references(() => questions.id),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    body: text("body").notNull(),
+    lang: text("lang").notNull().default("tr"),
+    status: text("status")
+      .notNull()
+      .default("published")
+      .$type<"published" | "pending" | "flagged" | "removed">(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("answers_user_created_idx").on(table.userId, table.createdAt)],
+);
 
 export const reports = pgTable(
   "reports",
@@ -208,6 +220,7 @@ export const reports = pgTable(
       table.targetType,
       table.targetId,
     ),
+    index("reports_reporter_created_idx").on(table.reporterId, table.createdAt),
   ],
 );
 
@@ -233,6 +246,8 @@ export const translations = pgTable(
     primaryKey({
       columns: [table.targetType, table.targetId, table.field, table.locale],
     }),
+    // Global çeviri rate-limit penceresi COUNT'u için (Faz 9 T1).
+    index("translations_created_idx").on(table.createdAt),
   ],
 );
 
@@ -243,7 +258,13 @@ export const moderationLog = pgTable("moderation_log", {
   action: text("action")
     .notNull()
     .$type<
-      "ai_flag" | "ai_block" | "ai_timeout" | "mod_remove" | "mod_restore" | "mod_ban"
+      | "ai_flag"
+      | "ai_block"
+      | "ai_timeout"
+      | "mod_remove"
+      | "mod_restore"
+      | "mod_ban"
+      | "user_edit"
     >(),
   detail: jsonb("detail").$type<{ reasons?: string[]; note?: string }>(),
   actorType: text("actor_type").notNull().$type<"ai" | "user">(),
@@ -255,24 +276,30 @@ export const moderationLog = pgTable("moderation_log", {
 
 /** Profesyonel rozet başvuruları (Faz 6). Belge yükleme yok — beyan
  * (document_note); onay users.pro_badge + role'e yansır. */
-export const badgeRequests = pgTable("badge_requests", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id),
-  claimedRole: text("claimed_role").notNull().$type<"doctor" | "pharmacist">(),
-  institution: text("institution").notNull(),
-  documentNote: text("document_note").notNull(),
-  status: text("status")
-    .notNull()
-    .default("pending")
-    .$type<"pending" | "approved" | "rejected">(),
-  reviewedBy: uuid("reviewed_by").references(() => users.id),
-  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const badgeRequests = pgTable(
+  "badge_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    claimedRole: text("claimed_role").notNull().$type<"doctor" | "pharmacist">(),
+    institution: text("institution").notNull(),
+    documentNote: text("document_note").notNull(),
+    status: text("status")
+      .notNull()
+      .default("pending")
+      .$type<"pending" | "approved" | "rejected">(),
+    reviewedBy: uuid("reviewed_by").references(() => users.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("badge_requests_user_created_idx").on(table.userId, table.createdAt),
+  ],
+);
 
 export const experienceSideEffects = pgTable(
   "experience_side_effects",

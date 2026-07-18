@@ -16,6 +16,7 @@ import { reviewBadgeRequest } from "@/lib/badges/requests";
 import { logModeration } from "@/lib/moderation/log";
 import { recalcTopicStats } from "@/lib/stats/topic-stats";
 import { UUID_RE } from "@/lib/validate";
+import { safeInternalPath } from "@/lib/url";
 
 async function requireActor(db: Db): Promise<ModeratorActor> {
   const session = await auth();
@@ -156,7 +157,8 @@ export async function banUser(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/admin");
-  redirect("/admin");
+  // Kullanıcı arama bağlamı (?kullanici=) korunur (Faz 9 review).
+  redirect(safeInternalPath(formData.get("returnPath"), "/admin"));
 }
 
 /**
