@@ -125,6 +125,9 @@ Rozet başvuru formu → Resend ile **hepteqsadeceteq@gmail.com**'a mail + admin
 ### Faz 9 — Büyüme hazırlığı (plan sonrası ek, 2026-07-18)
 Sayfalama + performans index'leri (migration 0009 — kolon sözleşmesi değişmez); deneyim düzenleme (yeniden moderasyonlu); schema.org (QAPage/WebSite; ilaç sayfasına YMYL gereği rating işaretlemesi konmaz); admin kullanıcı yönetimi; paylaş linki + next/og görseli; ana sayfa boş durum bölümleri. Ayrıntı: docs/specs/faz-9-buyume-hazirligi.md
 
+### Faz 10 — Moderasyon tamamlama + cleanup (plan sonrası ek, 2026-07-18)
+Soru/yanıt için admin kuyruğu + Bildir (reports.target_type genişler — sözleşme zaten generic); soru/yanıt düzenleme; guard/formatDate/banner/test-kurulum tekilleştirmesi. Ayrıntı: docs/specs/faz-10-moderasyon-tamamlama.md
+
 ### Faz 7 — Yayın sertleşmesi
 TİTCK tam ilaç listesi import script'i (önce lisans/kullanım şartı araştırması); SEO (metadata, sitemap, OG) + **noindex ve deployment protection kaldırılır**; Sentry; rate limiting (Postgres-içi sliding window); KVKK aydınlatma + açık rıza metinleri + kullanım şartları (tıbbi sorumluluk reddi dahil); Playwright e2e ana akışlar; performans; domain bağlama.
 **İnsan adımı:** domain satın alma; yasal metinlerin (tercihen bir hukukçuyla) gözden geçirilmesi.
