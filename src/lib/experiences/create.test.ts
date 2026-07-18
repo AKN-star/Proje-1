@@ -8,7 +8,12 @@ import { seed } from "@/db/seed";
 import { sideEffectTerms, users } from "@/db/schema";
 import { getTopicBySlug } from "@/lib/queries/topics";
 import { validateExperienceInput } from "@/lib/validation/experience";
-import { insertExperience, statusForVerdict } from "./create";
+import {
+  getOwnExperience,
+  insertExperience,
+  statusForVerdict,
+  updateOwnExperience,
+} from "./create";
 
 let client: PGlite;
 let db: PgliteDatabase<typeof schema>;
@@ -114,6 +119,93 @@ describe("insertExperience", () => {
 
     const topicResult = await getTopicBySlug(db, "parol", "tr");
     expect(topicResult?.experiences.length).toBe(0);
+  });
+});
+
+describe("updateOwnExperience (Faz 9 T3)", () => {
+  async function setupOwn() {
+    const parol = await db.query.topics.findFirst({
+      where: (t, { eq }) => eq(t.slug, "parol"),
+    });
+    const [owner] = await db
+      .insert(users)
+      .values({ email: "sahip@example.com", username: "sahip" })
+      .returning();
+    const [other] = await db
+      .insert(users)
+      .values({ email: "digeri@example.com", username: "digeri" })
+      .returning();
+    const [term] = await db.select().from(sideEffectTerms).limit(1);
+    const inserted = await insertExperience(
+      db,
+      {
+        purpose: "baş ağrısı",
+        body: "İlk halim böyleydi, yeterince uzun.",
+        effectiveness: 3,
+        durationDays: null,
+        sideEffectIds: [term!.id],
+      },
+      owner!.id,
+      parol!.id,
+      "published",
+    );
+    return { ownerId: owner!.id, otherId: other!.id, experienceId: inserted.id, termId: term!.id };
+  }
+
+  it("getOwnExperience sahibine yan etkilerle döner, başkasına null", async () => {
+    const { ownerId, otherId, experienceId, termId } = await setupOwn();
+    const own = await getOwnExperience(db, ownerId, experienceId);
+    expect(own?.topicSlug).toBe("parol");
+    expect(own?.sideEffectIds).toEqual([termId]);
+    expect(await getOwnExperience(db, otherId, experienceId)).toBeNull();
+  });
+
+  it("alanları ve yan etkileri günceller; yeni status yazılır", async () => {
+    const { ownerId, experienceId } = await setupOwn();
+    const ok = await updateOwnExperience(
+      db,
+      ownerId,
+      experienceId,
+      {
+        purpose: "migren",
+        body: "Düzenlenmiş metin, yeterince uzun bir açıklama.",
+        effectiveness: 5,
+        durationDays: 7,
+        sideEffectIds: [],
+      },
+      "pending",
+    );
+    expect(ok).toBe(true);
+
+    const own = await getOwnExperience(db, ownerId, experienceId);
+    expect(own).toMatchObject({
+      purpose: "migren",
+      effectiveness: 5,
+      durationDays: 7,
+      sideEffectIds: [],
+    });
+
+    // pending status yayınlanmış listede görünmez.
+    const topicResult = await getTopicBySlug(db, "parol", "tr");
+    expect(topicResult?.experiences).toHaveLength(0);
+  });
+
+  it("başkasının deneyimini güncellemez", async () => {
+    const { otherId, experienceId } = await setupOwn();
+    const ok = await updateOwnExperience(
+      db,
+      otherId,
+      experienceId,
+      {
+        purpose: "kaçırma denemesi",
+        body: "Bu güncelleme asla yazılmamalı, uzun metin.",
+        effectiveness: 1,
+        durationDays: null,
+        sideEffectIds: [],
+      },
+      "published",
+    );
+    expect(ok).toBe(false);
   });
 });
 
