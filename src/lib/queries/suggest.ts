@@ -4,7 +4,7 @@
  * sıfır sonuçta aktif başlık adları üzerinde JS Levenshtein koşulur.
  * TİTCK importu sonrası ölçek sorun olursa pg_trgm'e geçilir.
  */
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { topicI18n, topics } from "@/db/schema";
 
@@ -47,33 +47,32 @@ export async function suggestTopics(db: Db, q: string): Promise<TopicSuggestion[
   const needle = q.trim().toLocaleLowerCase("tr-TR");
   if (needle.length < 3) return [];
 
+  // Locale filtresi listTopics ile aynı: topic başına tek satır gelir
+  // (tr adı gösterilir); TİTCK sonrası ölçekte SQL uzunluk-bandı ön
+  // filtresi veya pg_trgm'e geçiş notu spec'te.
   const rows = await db
     .select({ slug: topics.slug, canonicalName: topics.canonicalName, name: topicI18n.name })
     .from(topics)
-    .leftJoin(topicI18n, eq(topicI18n.topicId, topics.id))
+    .leftJoin(
+      topicI18n,
+      and(eq(topicI18n.topicId, topics.id), eq(topicI18n.locale, "tr")),
+    )
     .where(eq(topics.status, "active"));
 
   const threshold = Math.max(1, Math.floor(needle.length * THRESHOLD_RATIO));
 
-  const bySlug = new Map<string, { name: string; distance: number }>();
-  for (const row of rows) {
-    const display = row.name ?? row.canonicalName;
-    const candidates = [row.canonicalName, row.name].filter(
-      (v): v is string => Boolean(v),
-    );
-    let best = Number.POSITIVE_INFINITY;
-    for (const candidate of candidates) {
-      best = Math.min(best, levenshtein(needle, candidate.toLocaleLowerCase("tr-TR")));
-    }
-    if (best > threshold) continue;
-    const existing = bySlug.get(row.slug);
-    if (!existing || best < existing.distance) {
-      bySlug.set(row.slug, { name: display, distance: best });
-    }
-  }
-
-  return [...bySlug.entries()]
-    .sort((a, b) => a[1].distance - b[1].distance)
+  return rows
+    .map((row) => {
+      const candidates = [row.canonicalName, row.name].filter(
+        (v): v is string => Boolean(v),
+      );
+      const distance = Math.min(
+        ...candidates.map((c) => levenshtein(needle, c.toLocaleLowerCase("tr-TR"))),
+      );
+      return { slug: row.slug, name: row.name ?? row.canonicalName, distance };
+    })
+    .filter((s) => s.distance <= threshold)
+    .sort((a, b) => a.distance - b.distance)
     .slice(0, MAX_SUGGESTIONS)
-    .map(([slug, { name }]) => ({ slug, name }));
+    .map(({ slug, name }) => ({ slug, name }));
 }

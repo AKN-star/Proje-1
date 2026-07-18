@@ -19,6 +19,10 @@ function isKind(value: string): value is Kind {
   return (KINDS as readonly string[]).includes(value);
 }
 
+// BİLİNÇLİ KARAR (Faz 8 review): bu dosyadaki eylemler onboarding/ban
+// guard'ı içermez — kendi içeriğini kaldırmak ve hesabı silmek (KVKK
+// hakkı) banlı kullanıcı için de geçerlidir; içerik sahipliği çekirdekte
+// (removeOwnContent) doğrulanır. Bu bir unutma değil, tercihtir.
 export async function removeMyContent(formData: FormData): Promise<void> {
   const session = await auth();
   if (!session?.user) {
@@ -34,9 +38,13 @@ export async function removeMyContent(formData: FormData): Promise<void> {
   const db = await getDb();
   const affectedPath = await removeOwnContent(db, session.user.id, kind, targetId);
 
-  if (affectedPath) {
-    revalidatePath(affectedPath);
+  // Başarısızlıkta (sahip değil / zaten kaldırılmış) yeşil banner
+  // gösterilmez — yanıltıcı onay olmasın.
+  if (!affectedPath) {
+    redirect("/profil");
   }
+
+  revalidatePath(affectedPath);
   revalidatePath("/profil");
   redirect("/profil?kaldirildi=1");
 }

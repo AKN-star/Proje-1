@@ -5,8 +5,8 @@
  */
 import { and, desc, eq } from "drizzle-orm";
 import type { Db } from "@/db";
-import { accounts, sessions } from "@/db/auth-schema";
-import { answers, experiences, questions, topics, users } from "@/db/schema";
+import { accounts, sessions, verificationTokens } from "@/db/auth-schema";
+import { answers, badgeRequests, experiences, questions, topics, users } from "@/db/schema";
 import { logModeration } from "@/lib/moderation/log";
 import { recalcTopicStats } from "@/lib/stats/topic-stats";
 
@@ -107,9 +107,13 @@ export async function removeOwnContent(
   kind: "experience" | "question" | "answer",
   targetId: string,
 ): Promise<string | null> {
+  // Tür başına yalnız gerçekten farklı olan kısım: sahiplik sorgusu +
+  // status güncellemesi (+ deneyimde stats); denetim logu ortaktır.
+  let path: string | null = null;
+
   if (kind === "experience") {
     const [row] = await db
-      .select({ id: experiences.id, status: experiences.status, topicId: experiences.topicId, slug: topics.slug })
+      .select({ status: experiences.status, topicId: experiences.topicId, slug: topics.slug })
       .from(experiences)
       .innerJoin(topics, eq(topics.id, experiences.topicId))
       .where(and(eq(experiences.id, targetId), eq(experiences.userId, userId)))
@@ -117,52 +121,36 @@ export async function removeOwnContent(
     if (!row || row.status === "removed") return null;
     await db.update(experiences).set({ status: "removed" }).where(eq(experiences.id, targetId));
     await recalcTopicStats(db, row.topicId);
-    await logModeration(db, {
-      targetType: "experience",
-      targetId,
-      action: "mod_remove",
-      detail: { note: "self-remove" },
-      actorType: "user",
-      actorId: userId,
-    });
-    return `/baslik/${row.slug}`;
-  }
-
-  if (kind === "question") {
+    path = `/baslik/${row.slug}`;
+  } else if (kind === "question") {
     const [row] = await db
-      .select({ id: questions.id, status: questions.status })
+      .select({ status: questions.status })
       .from(questions)
       .where(and(eq(questions.id, targetId), eq(questions.userId, userId)))
       .limit(1);
     if (!row || row.status === "removed") return null;
     await db.update(questions).set({ status: "removed" }).where(eq(questions.id, targetId));
-    await logModeration(db, {
-      targetType: "question",
-      targetId,
-      action: "mod_remove",
-      detail: { note: "self-remove" },
-      actorType: "user",
-      actorId: userId,
-    });
-    return `/soru/${targetId}`;
+    path = `/soru/${targetId}`;
+  } else {
+    const [row] = await db
+      .select({ status: answers.status, questionId: answers.questionId })
+      .from(answers)
+      .where(and(eq(answers.id, targetId), eq(answers.userId, userId)))
+      .limit(1);
+    if (!row || row.status === "removed") return null;
+    await db.update(answers).set({ status: "removed" }).where(eq(answers.id, targetId));
+    path = `/soru/${row.questionId}`;
   }
 
-  const [row] = await db
-    .select({ id: answers.id, status: answers.status, questionId: answers.questionId })
-    .from(answers)
-    .where(and(eq(answers.id, targetId), eq(answers.userId, userId)))
-    .limit(1);
-  if (!row || row.status === "removed") return null;
-  await db.update(answers).set({ status: "removed" }).where(eq(answers.id, targetId));
   await logModeration(db, {
-    targetType: "answer",
+    targetType: kind,
     targetId,
     action: "mod_remove",
     detail: { note: "self-remove" },
     actorType: "user",
     actorId: userId,
   });
-  return `/soru/${row.questionId}`;
+  return path;
 }
 
 /**
@@ -173,6 +161,30 @@ export async function removeOwnContent(
  * yok.
  */
 export async function anonymizeAccount(db: Db, userId: string): Promise<void> {
+  // Eski e-posta tombstone'lanmadan ÖNCE okunur: bekleyen magic-link
+  // token'ları (identifier = e-posta) da silinmeli — yoksa gerçek
+  // e-posta (PII) verificationToken satırında yaşamaya devam eder ve
+  // bekleyen link eski adresle taze hesap açabilir.
+  const [current] = await db
+    .select({ email: users.email })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (current) {
+    await db
+      .delete(verificationTokens)
+      .where(eq(verificationTokens.identifier, current.email));
+  }
+
+  // Bekleyen rozet başvurusu açık kalmasın: sonradan onaylanırsa
+  // anonim hesaba rozet yazılırdı. Reddedilmiş sayılır (reviewer yok).
+  await db
+    .update(badgeRequests)
+    .set({ status: "rejected", reviewedAt: new Date() })
+    .where(
+      and(eq(badgeRequests.userId, userId), eq(badgeRequests.status, "pending")),
+    );
+
   await db
     .update(users)
     .set({

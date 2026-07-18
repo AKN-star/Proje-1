@@ -10,6 +10,11 @@ import { brand } from "@/config/brand";
 // özel domain doğrulanınca yalnız burası değişir.
 export const EMAIL_FROM = "onboarding@resend.dev";
 
+/** Serbest metin HTML e-postaya kaçırılmadan gömülmez (tek kopya). */
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 /** Resend REST çağrısının tek kopyası; !res.ok fırlatır. */
 async function postResendEmail(
   apiKey: string,
@@ -71,15 +76,12 @@ export async function sendAnswerNotice(input: {
     return;
   }
 
-  const esc = (s: string) =>
-    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
   try {
     await postResendEmail(
       apiKey,
       input.to,
       `${brand.name} — sorunuza yeni bir yanıt geldi`,
-      `<p>&quot;${esc(input.questionTitle)}&quot; sorunuza yeni bir yanıt geldi.</p><p><a href="${input.questionUrl}">Yanıtı görüntüleyin</a></p><p>Bu bildirimleri Ayarlar sayfasından kapatabilirsiniz.</p>`,
+      `<p>&quot;${escapeHtml(input.questionTitle)}&quot; sorunuza yeni bir yanıt geldi.</p><p><a href="${input.questionUrl}">Yanıtı görüntüleyin</a></p><p>Bu bildirimleri Ayarlar sayfasından kapatabilirsiniz.</p>`,
     );
   } catch (err) {
     console.error("Yanıt bildirimi gönderilemedi:", err);
@@ -105,16 +107,12 @@ export async function sendBadgeRequestNotice(request: {
     return;
   }
 
-  // Kurum serbest metin — HTML e-postaya kaçırılmadan gömülmez.
-  const esc = (s: string) =>
-    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
   try {
     await postResendEmail(
       apiKey,
       brand.contactEmail,
       `${brand.name} — yeni rozet başvurusu: ${request.username}`,
-      `<p>Yeni rozet başvurusu var:</p><ul><li>Kullanıcı: ${esc(request.username)}</li><li>Rol: ${esc(request.claimedRole)}</li><li>Kurum: ${esc(request.institution)}</li></ul><p>Onay/red için admin paneline gidin.</p>`,
+      `<p>Yeni rozet başvurusu var:</p><ul><li>Kullanıcı: ${escapeHtml(request.username)}</li><li>Rol: ${escapeHtml(request.claimedRole)}</li><li>Kurum: ${escapeHtml(request.institution)}</li></ul><p>Onay/red için admin paneline gidin.</p>`,
     );
   } catch (err) {
     console.error("Rozet bildirimi gönderilemedi:", err);

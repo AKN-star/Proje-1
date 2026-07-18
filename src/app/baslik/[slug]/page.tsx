@@ -132,9 +132,12 @@ export default async function TopicPage({
 
   // Çeviri yalnız sayfadaki gerçek satır üstünden okunur (rastgele
   // ?cevir= id'si sorguya inmez) ve hash güncel değilse gösterilmez.
+  // Filtresiz listede aranır: paylaşılan çeviri linkine sonradan farklı
+  // ?amac= eklense de çeviri kaybolmasın (kart görünmüyorsa blok da
+  // render edilmez, zararsız).
   const cevirExperience =
     cevirType === "experience" && cevirId
-      ? experiences.find((e) => e.id === cevirId)
+      ? allExperiences.find((e) => e.id === cevirId)
       : undefined;
   const translatedExperienceBody =
     cevirExperience && cevirLocale
@@ -388,6 +391,7 @@ export default async function TopicPage({
                     >
                       <input type="hidden" name="experienceId" value={experience.id} />
                       <input type="hidden" name="slug" value={topic.slug} />
+                      <input type="hidden" name="returnPath" value={returnPath} />
                       <select
                         name="reason"
                         defaultValue=""

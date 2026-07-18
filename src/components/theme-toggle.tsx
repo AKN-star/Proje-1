@@ -33,6 +33,16 @@ export function ThemeToggle() {
     setTheme(stored === "light" || stored === "dark" ? stored : "system");
   }, []);
 
+  // Sistem modunda OS teması canlı değişirse (gün batımı otomatiği)
+  // sayfa açıkken de takip et.
+  useEffect(() => {
+    if (theme !== "system") return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => applyTheme("system");
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, [theme]);
+
   const cycle = () => {
     if (!theme) return;
     const next = ORDER[(ORDER.indexOf(theme) + 1) % ORDER.length];

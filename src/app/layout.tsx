@@ -24,7 +24,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="tr">
+    // suppressHydrationWarning: tema script'i hydrate'ten önce <html>'e
+    // .dark ekleyebilir — bu bilinçli sunucu/DOM farkıdır.
+    <html lang="tr" suppressHydrationWarning>
       <body
         className={`${GeistSans.variable} ${GeistMono.variable} font-sans antialiased`}
       >
