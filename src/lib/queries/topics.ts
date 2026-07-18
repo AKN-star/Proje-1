@@ -293,7 +293,7 @@ export async function getTopicBySlug(
     .where(
       and(eq(experiences.topicId, topicRow.id), eq(experiences.status, "published")),
     )
-    .orderBy(desc(experiences.createdAt));
+    .orderBy(desc(experiences.createdAt), desc(experiences.id));
 
   const experienceIds = experienceRows.map((row) => row.id);
   const sideEffectsByExperience = new Map<string, string[]>();
