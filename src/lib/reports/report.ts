@@ -6,7 +6,11 @@
 import type { Db } from "@/db";
 import { reports } from "@/db/schema";
 
-export type ReportTargetType = "experience";
+export type ReportTargetType = "experience" | "question" | "answer";
+
+export function isReportTargetType(value: string): value is ReportTargetType {
+  return value === "experience" || value === "question" || value === "answer";
+}
 export type ReportReason =
   | "spam"
   | "medical_misinfo"
