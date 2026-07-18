@@ -6,6 +6,17 @@
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Form hata metinlerinin tek kaynağı (yaz + düzenle sayfaları);
+ * doğrulama sınırları değişince yalnız burası güncellenir (Faz 9). */
+export const EXPERIENCE_ERROR_MESSAGES: Record<string, string> = {
+  purpose: "Amaç 3 ile 200 karakter arasında olmalıdır.",
+  body: "Metin 10 ile 5000 karakter arasında olmalıdır.",
+  effectiveness: "Etki 1 ile 5 arasında seçilmelidir.",
+  durationDays: "Süre boş bırakılabilir veya 1 ile 3650 gün arasında olmalıdır.",
+  sideEffectIds: "Yan etki seçimi geçersiz.",
+  _root: "Bir şeyler ters gitti, lütfen tekrar deneyin.",
+};
+
 export interface ExperienceInput {
   purpose: string;
   body: string;
