@@ -20,6 +20,12 @@ import {
 } from "@/lib/validation/qa";
 import { moderate } from "@/lib/ai/moderate";
 import { createAnswer, createQuestion } from "@/lib/qa/questions";
+import {
+  getOwnAnswer,
+  getOwnQuestion,
+  updateOwnAnswer,
+  updateOwnQuestion,
+} from "@/lib/qa/edit";
 import { statusForVerdict } from "@/lib/experiences/create";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getOnboardingProfile } from "@/lib/users/onboarding";
@@ -229,4 +235,153 @@ export async function voteAnswer(formData: FormData): Promise<void> {
 
   revalidatePath(returnPath);
   redirect(returnPath);
+}
+
+/**
+ * Kendi sorusunu düzenler (Faz 10 T3). updateExperience ile aynı sıra:
+ * guard → doğrulama → YENİDEN moderasyon (kural #3) → güncelle →
+ * user_edit izi → redirect. Block'ta içerik ESKİ haliyle kalır.
+ */
+export async function updateQuestion(formData: FormData): Promise<void> {
+  const questionId = String(formData.get("questionId") ?? "");
+  const returnPath = `/soru-duzenle/${questionId}`;
+
+  const { db, userId } = await requireOnboardedUser(
+    UUID_RE.test(questionId) ? returnPath : "/profil",
+    `${returnPath}?hata=_root`,
+  );
+  if (!UUID_RE.test(questionId)) {
+    redirect("/profil");
+  }
+
+  if (!(await checkRateLimit(db, userId, "contentEdit"))) {
+    redirect(`${returnPath}?hata=limit`);
+  }
+
+  const existing = await getOwnQuestion(db, userId, questionId);
+  if (!existing) {
+    redirect("/profil");
+  }
+
+  const rawInput = {
+    title: String(formData.get("title") ?? ""),
+    body: formData.get("body") === null ? null : String(formData.get("body")),
+  };
+  const validation = validateQuestionInput(rawInput);
+  if (!validation.ok) {
+    const firstField =
+      QUESTION_FIELD_ORDER.find((field) => validation.errors[field]) ?? "_root";
+    redirect(`${returnPath}?hata=${firstField}`);
+  }
+
+  const content = validation.data.body
+    ? `${validation.data.title}\n\n${validation.data.body}`
+    : validation.data.title;
+  const moderation = await moderate(content, "question");
+  if (moderation.verdict === "block") {
+    await logModeration(db, {
+      targetType: "question",
+      targetId: questionId,
+      action: "ai_block",
+      detail: { reasons: moderation.reasons, note: "edit-blocked" },
+      actorType: "ai",
+    });
+    redirect(`${returnPath}?hata=moderasyon`);
+  }
+
+  const status = statusForVerdict(moderation.verdict);
+  const updated = await updateOwnQuestion(db, userId, questionId, validation.data, status);
+  if (!updated) {
+    redirect("/profil");
+  }
+
+  if (moderation.verdict === "flag" || moderation.verdict === "timeout") {
+    await logModeration(db, {
+      targetType: "question",
+      targetId: questionId,
+      action: moderation.verdict === "flag" ? "ai_flag" : "ai_timeout",
+      detail: { reasons: moderation.reasons, note: "edit" },
+      actorType: "ai",
+    });
+  }
+
+  await logModeration(db, {
+    targetType: "question",
+    targetId: questionId,
+    action: "user_edit",
+    actorType: "user",
+    actorId: userId,
+  });
+
+  revalidatePath(`/soru/${questionId}`);
+  revalidatePath("/profil");
+  redirect(`/soru/${questionId}`);
+}
+
+/** Kendi yanıtını düzenler (Faz 10 T3). updateQuestion ile aynı akış. */
+export async function updateAnswer(formData: FormData): Promise<void> {
+  const answerId = String(formData.get("answerId") ?? "");
+  const returnPath = `/yanit-duzenle/${answerId}`;
+
+  const { db, userId } = await requireOnboardedUser(
+    UUID_RE.test(answerId) ? returnPath : "/profil",
+    `${returnPath}?hata=_root`,
+  );
+  if (!UUID_RE.test(answerId)) {
+    redirect("/profil");
+  }
+
+  if (!(await checkRateLimit(db, userId, "contentEdit"))) {
+    redirect(`${returnPath}?hata=limit`);
+  }
+
+  const existing = await getOwnAnswer(db, userId, answerId);
+  if (!existing) {
+    redirect("/profil");
+  }
+
+  const validation = validateAnswerInput({ body: String(formData.get("body") ?? "") });
+  if (!validation.ok) {
+    redirect(`${returnPath}?hata=body`);
+  }
+
+  const moderation = await moderate(validation.data.body, "answer");
+  if (moderation.verdict === "block") {
+    await logModeration(db, {
+      targetType: "answer",
+      targetId: answerId,
+      action: "ai_block",
+      detail: { reasons: moderation.reasons, note: "edit-blocked" },
+      actorType: "ai",
+    });
+    redirect(`${returnPath}?hata=moderasyon`);
+  }
+
+  const status = statusForVerdict(moderation.verdict);
+  const updated = await updateOwnAnswer(db, userId, answerId, validation.data, status);
+  if (!updated) {
+    redirect("/profil");
+  }
+
+  if (moderation.verdict === "flag" || moderation.verdict === "timeout") {
+    await logModeration(db, {
+      targetType: "answer",
+      targetId: answerId,
+      action: moderation.verdict === "flag" ? "ai_flag" : "ai_timeout",
+      detail: { reasons: moderation.reasons, note: "edit" },
+      actorType: "ai",
+    });
+  }
+
+  await logModeration(db, {
+    targetType: "answer",
+    targetId: answerId,
+    action: "user_edit",
+    actorType: "user",
+    actorId: userId,
+  });
+
+  revalidatePath(`/soru/${existing.questionId}`);
+  revalidatePath("/profil");
+  redirect(`/soru/${existing.questionId}`);
 }
