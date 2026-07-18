@@ -21,7 +21,7 @@ import {
 
 export type RateLimitKind =
   | "experience"
-  | "experienceEdit"
+  | "contentEdit"
   | "question"
   | "answer"
   | "report"
@@ -42,7 +42,7 @@ export const RATE_LIMITS = {
   // Düzenleme insert üretmez — pencere moderation_log'daki 'user_edit'
   // denetim kayıtlarından sayılır (her düzenleme ücretli moderate()
   // çağrısıdır; sınırsız bırakılamaz — Faz 9 review bulgusu).
-  experienceEdit: { windowMs: HOUR, max: 10 },
+  contentEdit: { windowMs: HOUR, max: 10 },
   question: { windowMs: HOUR, max: 5 },
   answer: { windowMs: HOUR, max: 20 },
   report: { windowMs: HOUR, max: 10 },
@@ -113,7 +113,7 @@ export async function checkRateLimit(
       total = row.total;
       break;
     }
-    case "experienceEdit": {
+    case "contentEdit": {
       const [row] = await db
         .select({ total: count() })
         .from(moderationLog)

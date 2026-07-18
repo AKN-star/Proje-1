@@ -22,7 +22,8 @@ import { moderate } from "@/lib/ai/moderate";
 import { createAnswer, createQuestion } from "@/lib/qa/questions";
 import { statusForVerdict } from "@/lib/experiences/create";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
+import { getOnboardingProfile } from "@/lib/users/onboarding";
+import { requireOnboardedUser } from "@/lib/users/guards";
 import { logModeration } from "@/lib/moderation/log";
 import { castVote } from "@/lib/votes/vote";
 import { UUID_RE } from "@/lib/validate";
@@ -33,27 +34,16 @@ export async function submitQuestion(formData: FormData): Promise<void> {
   const slug = String(formData.get("slug") ?? "");
   const returnPath = `/baslik/${slug}/soru-sor`;
 
-  const session = await auth();
-  if (!session?.user) {
-    redirect(slug ? `/giris?next=${encodeURIComponent(returnPath)}` : "/giris");
-  }
+  const { db, userId } = await requireOnboardedUser(
+    slug ? returnPath : "/",
+    `${returnPath}?hata=_root`,
+  );
 
   if (!slug) {
     redirect(`${returnPath}?hata=_root`);
   }
 
-  const db = await getDb();
-
-  const profile = await getOnboardingProfile(db, session.user.id);
-  if (!isOnboarded(profile)) {
-    redirect(`/hosgeldin?next=${encodeURIComponent(returnPath)}`);
-  }
-
-  if (profile?.bannedAt) {
-    redirect(`${returnPath}?hata=_root`);
-  }
-
-  if (!(await checkRateLimit(db, session.user.id, "question"))) {
+  if (!(await checkRateLimit(db, userId, "question"))) {
     redirect(`${returnPath}?hata=limit`);
   }
 
@@ -96,13 +86,7 @@ export async function submitQuestion(formData: FormData): Promise<void> {
   }
 
   const status = statusForVerdict(moderation.verdict);
-  const result = await createQuestion(
-    db,
-    validation.data,
-    session.user.id,
-    topic.id,
-    status,
-  );
+  const result = await createQuestion(db, validation.data, userId, topic.id, status);
 
   if (moderation.verdict === "flag" || moderation.verdict === "timeout") {
     await logModeration(db, {
@@ -122,31 +106,16 @@ export async function submitAnswer(formData: FormData): Promise<void> {
   const questionId = String(formData.get("questionId") ?? "");
   const returnPath = `/soru/${questionId}`;
 
-  const session = await auth();
-  if (!session?.user) {
-    redirect(
-      UUID_RE.test(questionId)
-        ? `/giris?next=${encodeURIComponent(returnPath)}`
-        : "/giris",
-    );
-  }
+  const { db, userId } = await requireOnboardedUser(
+    UUID_RE.test(questionId) ? returnPath : "/",
+    `${returnPath}?hata=_root`,
+  );
 
   if (!UUID_RE.test(questionId)) {
     redirect("/");
   }
 
-  const db = await getDb();
-
-  const profile = await getOnboardingProfile(db, session.user.id);
-  if (!isOnboarded(profile)) {
-    redirect(`/hosgeldin?next=${encodeURIComponent(returnPath)}`);
-  }
-
-  if (profile?.bannedAt) {
-    redirect(`${returnPath}?hata=_root`);
-  }
-
-  if (!(await checkRateLimit(db, session.user.id, "answer"))) {
+  if (!(await checkRateLimit(db, userId, "answer"))) {
     redirect(`${returnPath}?hata=limit`);
   }
 
@@ -183,13 +152,7 @@ export async function submitAnswer(formData: FormData): Promise<void> {
   }
 
   const status = statusForVerdict(moderation.verdict);
-  const result = await createAnswer(
-    db,
-    validation.data,
-    session.user.id,
-    question.id,
-    status,
-  );
+  const result = await createAnswer(db, validation.data, userId, question.id, status);
 
   if (moderation.verdict === "flag" || moderation.verdict === "timeout") {
     await logModeration(db, {
@@ -206,8 +169,7 @@ export async function submitAnswer(formData: FormData): Promise<void> {
   // yazıldı); kuyruktan sonradan onaylanan yanıt bildirim üretmez
   // (spec bilinen sınırı). Guard'lar ve kompozisyon lib'de tek yerde.
   if (result.status === "published") {
-    const answererId = session.user.id;
-    after(() => notifyQuestionOwner(db, question.id, answererId));
+    after(() => notifyQuestionOwner(db, question.id, userId));
   }
 
   revalidatePath(returnPath);

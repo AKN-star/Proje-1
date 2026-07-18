@@ -28,10 +28,12 @@ Kullanıcı onayı 2026-07-18 ("hepsini yap"). Üç iş:
 - `formatDate(date, {withTime})` lib/utils.ts'e — 5 sayfa kopyası kalkar
   (admin'in saatli varyantı parametreyle).
 - `FlashBanner` bileşeni (success|error) — 5+ banner kopyası kalkar.
-- `createTestDb()` test yardımcısı (src/lib/test-db.ts) — 8 test
-  dosyasındaki migration-runner beforeEach kopyaları kalkar. NOT:
-  assert'lere DOKUNULMAZ; yalnız kurulum bloğu yardımcıya taşınır
-  (CLAUDE.md cleanup tanımı kapsamında).
+- `createTestDb()` test yardımcısı (src/lib/test-db.ts) oluşturuldu ve
+  yeni T3 testleri bunu kullanır. Mevcut 19 test dosyasının beforeEach'i
+  farklı şekillerde (kimi seed'li, kimi vi.mock önekli) olduğundan toplu
+  mekanik göç RİSKLİ ve ürün değeri sıfır — ayrı, izole, güvenli bir
+  temizlik taraması olarak ERTELENDİ (spec kapanış notu). Yardımcı hazır,
+  yeni kod tek kaynağı kullanıyor.
 
 ## T3 — Soru/yanıt düzenleme (deneyimle simetri)
 - lib/qa/edit.ts: getOwnQuestion/updateOwnQuestion + getOwnAnswer/

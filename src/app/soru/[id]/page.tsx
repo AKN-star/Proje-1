@@ -1,3 +1,4 @@
+import { FlashBanner } from "@/components/flash-banner";
 import { RATE_LIMIT_ERROR_MESSAGE } from "@/lib/rate-limit";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -17,7 +18,7 @@ import { CopyLinkButton } from "@/components/copy-link-button";
 import { ReportForm } from "@/components/report-form";
 import { normalizeLocale, isLocale, type Locale } from "@/lib/locales";
 import { UUID_RE } from "@/lib/validate";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 // Canlı DB verisi gösterir; build sırasında prerender edilmez (PGlite
 // build worker'larında paralel açılamaz, veri de istekte taze olmalı).
@@ -30,13 +31,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   _root: "Bir şeyler ters gitti, lütfen tekrar deneyin.",
 };
 
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("tr-TR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
-}
 
 /** SEO (Faz 7 T2): soru başlığı title/description. Ağır yanıt sorgusu
  * değil, tek satırlık meta sorgusu kullanılır. */
@@ -231,11 +225,7 @@ export default async function SoruPage({
         </p>
       )}
 
-      {bildirildi === "1" && (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-400">
-          Bildiriminiz alındı, teşekkürler.
-        </p>
-      )}
+      {bildirildi === "1" && <FlashBanner>Bildiriminiz alındı, teşekkürler.</FlashBanner>}
 
       {cevirHata === "1" && (
         <p

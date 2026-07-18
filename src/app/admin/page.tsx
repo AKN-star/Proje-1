@@ -29,7 +29,9 @@ import {
   CLAIMED_ROLE_LABELS,
   listPendingBadgeRequests,
 } from "@/lib/badges/requests";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
+
+const formatDateWithTime = (date: Date) => formatDate(date, { withTime: true });
 
 // Canlı DB verisi gösterir; build sırasında prerender edilmez (topic
 // sayfasıyla aynı gerekçe — bkz. src/app/baslik/[slug]/page.tsx).
@@ -51,15 +53,6 @@ const TOPIC_TYPE_LABELS: Record<string, string> = {
   treatment: "Tedavi",
 };
 
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("tr-TR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
 
 export default async function AdminPage({
   searchParams,
@@ -116,7 +109,7 @@ export default async function AdminPage({
                     </Badge>
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    {formatDate(item.createdAt)}
+                    {formatDateWithTime(item.createdAt)}
                   </span>
                 </div>
               </CardHeader>
@@ -184,7 +177,7 @@ export default async function AdminPage({
                     {REPORT_REASON_LABELS[report.reason] ?? report.reason}
                   </CardTitle>
                   <span className="text-sm text-muted-foreground">
-                    {formatDate(report.createdAt)}
+                    {formatDateWithTime(report.createdAt)}
                   </span>
                 </div>
               </CardHeader>
@@ -276,7 +269,7 @@ export default async function AdminPage({
                     </Badge>
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    {formatDate(item.createdAt)}
+                    {formatDateWithTime(item.createdAt)}
                   </span>
                 </div>
               </CardHeader>
@@ -445,7 +438,7 @@ export default async function AdminPage({
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
                 <p className="text-sm text-muted-foreground">
-                  {request.email} · {formatDate(request.createdAt)}
+                  {request.email} · {formatDateWithTime(request.createdAt)}
                 </p>
                 <p className="text-sm">
                   <span className="font-medium">Kurum:</span> {request.institution}

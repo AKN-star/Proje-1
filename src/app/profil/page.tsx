@@ -1,3 +1,4 @@
+import { FlashBanner } from "@/components/flash-banner";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
@@ -9,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { ProBadge } from "@/components/pro-badge";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 // Oturuma bağlı canlı veri; prerender edilmez.
 export const dynamic = "force-dynamic";
@@ -27,13 +28,6 @@ const STATUS_LABELS: Record<string, string> = {
   removed: "Kaldırıldı",
 };
 
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("tr-TR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
-}
 
 export default async function ProfilPage({
   searchParams,
@@ -68,15 +62,11 @@ export default async function ProfilPage({
         </Link>
       </div>
 
-      {kaldirildi === "1" && (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-400">
-          İçerik kaldırıldı.
-        </p>
-      )}
+      {kaldirildi === "1" && <FlashBanner>İçerik kaldırıldı.</FlashBanner>}
       {hata === "onay" && (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
+        <FlashBanner tone="error">
           Hesabı silmek için onay kutusunu işaretlemeniz gerekiyor.
-        </p>
+        </FlashBanner>
       )}
 
       <section className="flex flex-col gap-4">

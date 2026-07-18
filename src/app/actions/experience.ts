@@ -9,8 +9,6 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
-import { auth } from "@/auth";
-import { getDb } from "@/db";
 import { topics } from "@/db/schema";
 import { validateExperienceInput } from "@/lib/validation/experience";
 import { moderate } from "@/lib/ai/moderate";
@@ -22,7 +20,7 @@ import {
 } from "@/lib/experiences/create";
 import { UUID_RE } from "@/lib/validate";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
+import { requireOnboardedUser } from "@/lib/users/guards";
 import { recalcTopicStats } from "@/lib/stats/topic-stats";
 import { logModeration } from "@/lib/moderation/log";
 
@@ -41,35 +39,21 @@ function parseNumber(value: FormDataEntryValue | null): number | undefined {
 }
 
 export async function submitExperience(formData: FormData): Promise<void> {
-  const session = await auth();
-  if (!session?.user) {
-    redirect("/giris");
-  }
-
   const slug = String(formData.get("slug") ?? "");
   const returnPath = `/baslik/${slug}/deneyim-yaz`;
+
+  // Guard zinciri tek kaynaktan (Faz 10 T2). Banlıya "_root" genel
+  // hatası gösterilir (Faz 1 SAPMA kaydıyla aynı davranış).
+  const { db, userId } = await requireOnboardedUser(
+    returnPath,
+    `${returnPath}?hata=_root`,
+  );
 
   if (!slug) {
     redirect(`${returnPath}?hata=_root`);
   }
 
-  const db = await getDb();
-
-  // Takma ad + KVKK rızası olmadan yazma yok (master plan sözleşmesi).
-  const profile = await getOnboardingProfile(db, session.user.id);
-  if (!isOnboarded(profile)) {
-    redirect(`/hosgeldin?next=${encodeURIComponent(returnPath)}`);
-  }
-
-  // Banlı kullanıcı yazamaz (master plan sözleşmesi). SAPMA KAYDI (T2):
-  // deneyim-yaz sayfasındaki ERROR_MESSAGES sözlüğü T3/W3 kapsamında ve bu
-  // worktree'den dokunulamıyor; özel bir "banli" alanı eklemek yerine
-  // mevcut "_root" genel hata mesajı kullanılır.
-  if (profile?.bannedAt) {
-    redirect(`${returnPath}?hata=_root`);
-  }
-
-  if (!(await checkRateLimit(db, session.user.id, "experience"))) {
+  if (!(await checkRateLimit(db, userId, "experience"))) {
     redirect(`${returnPath}?hata=limit`);
   }
 
@@ -119,7 +103,7 @@ export async function submitExperience(formData: FormData): Promise<void> {
   }
 
   const status = statusForVerdict(moderation.verdict);
-  const result = await insertExperience(db, validation.data, session.user.id, topic.id, status);
+  const result = await insertExperience(db, validation.data, userId, topic.id, status);
 
   if (moderation.verdict === "flag" || moderation.verdict === "timeout") {
     await logModeration(db, {
@@ -146,35 +130,26 @@ export async function submitExperience(formData: FormData): Promise<void> {
  * recalc → redirect. Block verdict'te içerik ESKİ haliyle kalır.
  */
 export async function updateExperience(formData: FormData): Promise<void> {
-  const session = await auth();
-  if (!session?.user) {
-    redirect("/giris");
-  }
-
   const experienceId = String(formData.get("experienceId") ?? "");
-  if (!UUID_RE.test(experienceId)) {
-    redirect("/profil");
-  }
   const returnPath = `/deneyim-duzenle/${experienceId}`;
 
-  const db = await getDb();
+  const { db, userId } = await requireOnboardedUser(
+    UUID_RE.test(experienceId) ? returnPath : "/profil",
+    `${returnPath}?hata=_root`,
+  );
 
-  const profile = await getOnboardingProfile(db, session.user.id);
-  if (!isOnboarded(profile)) {
-    redirect(`/hosgeldin?next=${encodeURIComponent(returnPath)}`);
-  }
-  if (profile?.bannedAt) {
-    redirect(`${returnPath}?hata=_root`);
+  if (!UUID_RE.test(experienceId)) {
+    redirect("/profil");
   }
 
   // Her düzenleme ücretli moderate() çağrısıdır — pencere user_edit
   // denetim kayıtlarından sayılır (Faz 9 review bulgusu).
-  if (!(await checkRateLimit(db, session.user.id, "experienceEdit"))) {
+  if (!(await checkRateLimit(db, userId, "contentEdit"))) {
     redirect(`${returnPath}?hata=limit`);
   }
 
   // Sahiplik (ve topic slug'ı) çekirdek sorgusuyla doğrulanır.
-  const existing = await getOwnExperience(db, session.user.id, experienceId);
+  const existing = await getOwnExperience(db, userId, experienceId);
   if (!existing) {
     redirect("/profil");
   }
@@ -211,7 +186,7 @@ export async function updateExperience(formData: FormData): Promise<void> {
   const status = statusForVerdict(moderation.verdict);
   const updated = await updateOwnExperience(
     db,
-    session.user.id,
+    userId,
     experienceId,
     validation.data,
     status,
@@ -236,7 +211,7 @@ export async function updateExperience(formData: FormData): Promise<void> {
     targetId: experienceId,
     action: "user_edit",
     actorType: "user",
-    actorId: session.user.id,
+    actorId: userId,
   });
 
   await recalcTopicStats(db, existing.topicId);

@@ -1,3 +1,4 @@
+import { FlashBanner } from "@/components/flash-banner";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
@@ -21,7 +22,7 @@ import { CopyLinkButton } from "@/components/copy-link-button";
 import { normalizeLocale, isLocale, type Locale } from "@/lib/locales";
 import { buildReturnPath } from "@/lib/url";
 import { parsePage } from "@/lib/validate";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 // Canlı DB verisi gösterir; build sırasında prerender edilmez (PGlite
 // build worker'larında paralel açılamaz, veri de istekte taze olmalı).
@@ -58,13 +59,6 @@ export async function generateMetadata({
   };
 }
 
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("tr-TR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
-}
 
 function EffectivenessStars({ value }: { value: number }) {
   return (
@@ -206,11 +200,7 @@ export default async function TopicPage({
         {topic.summary && <p className="text-muted-foreground">{topic.summary}</p>}
       </div>
 
-      {bildirildi === "1" && (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-400">
-          Bildiriminiz alındı, teşekkürler.
-        </p>
-      )}
+      {bildirildi === "1" && <FlashBanner>Bildiriminiz alındı, teşekkürler.</FlashBanner>}
 
       {cevirHata === "1" && (
         <p
