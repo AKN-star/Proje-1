@@ -4,6 +4,15 @@
  * Kalıp src/lib/validation/experience.ts ile aynı: ok/errors yapısı.
  */
 
+/** Soru/yanıt form hata metinleri — tek kaynak (soru-sor + edit
+ * sayfaları); doğrulama sınırı değişince yalnız burası güncellenir. */
+export const QA_ERROR_MESSAGES: Record<string, string> = {
+  title: "Başlık 5 ile 150 karakter arasında olmalıdır.",
+  body: "Metin boş bırakılabilir veya 2 ile 5000 karakter arasında olmalıdır.",
+  moderasyon: "İçerik yayınlanamadı, lütfen metni gözden geçirin.",
+  _root: "Bir şeyler ters gitti, lütfen tekrar deneyin.",
+};
+
 export interface QuestionInput {
   title: string;
   body: string | null;

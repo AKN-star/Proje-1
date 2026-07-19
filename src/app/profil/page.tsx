@@ -1,3 +1,4 @@
+import { FlashBanner } from "@/components/flash-banner";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
@@ -9,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { ProBadge } from "@/components/pro-badge";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 // Oturuma bağlı canlı veri; prerender edilmez.
 export const dynamic = "force-dynamic";
@@ -20,6 +21,12 @@ const KIND_LABELS: Record<string, string> = {
   answer: "Yanıt",
 };
 
+const EDIT_PATHS: Record<string, string> = {
+  experience: "deneyim-duzenle",
+  question: "soru-duzenle",
+  answer: "yanit-duzenle",
+};
+
 const STATUS_LABELS: Record<string, string> = {
   published: "Yayında",
   pending: "İncelemede",
@@ -27,18 +34,11 @@ const STATUS_LABELS: Record<string, string> = {
   removed: "Kaldırıldı",
 };
 
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("tr-TR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
-}
 
 export default async function ProfilPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kaldirildi?: string; hata?: string }>;
+  searchParams: Promise<{ kaldirildi?: string; hata?: string; duzenlendi?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) {
@@ -54,7 +54,7 @@ export default async function ProfilPage({
     redirect("/hosgeldin?next=%2Fprofil");
   }
 
-  const { kaldirildi, hata } = await searchParams;
+  const { kaldirildi, hata, duzenlendi } = await searchParams;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-8 px-6 py-12">
@@ -68,15 +68,16 @@ export default async function ProfilPage({
         </Link>
       </div>
 
-      {kaldirildi === "1" && (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-400">
-          İçerik kaldırıldı.
-        </p>
+      {duzenlendi === "1" && (
+        <FlashBanner tone="info">
+          Düzenlemeniz alındı ve yeniden incelemeye girdi; onaylanınca yayında görünecek.
+        </FlashBanner>
       )}
+      {kaldirildi === "1" && <FlashBanner>İçerik kaldırıldı.</FlashBanner>}
       {hata === "onay" && (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
+        <FlashBanner tone="error">
           Hesabı silmek için onay kutusunu işaretlemeniz gerekiyor.
-        </p>
+        </FlashBanner>
       )}
 
       <section className="flex flex-col gap-4">
@@ -114,14 +115,12 @@ export default async function ProfilPage({
                 <span>{formatDate(item.createdAt)}</span>
                 {item.status !== "removed" && (
                   <div className="flex items-center gap-2">
-                    {item.kind === "experience" && (
-                      <Link
-                        href={`/deneyim-duzenle/${item.id}`}
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                      >
-                        Düzenle
-                      </Link>
-                    )}
+                    <Link
+                      href={`/${EDIT_PATHS[item.kind]}/${item.id}`}
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                    >
+                      Düzenle
+                    </Link>
                     <form action={removeMyContent}>
                       <input type="hidden" name="kind" value={item.kind} />
                       <input type="hidden" name="targetId" value={item.id} />

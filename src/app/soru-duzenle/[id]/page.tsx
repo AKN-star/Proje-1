@@ -1,30 +1,28 @@
 import { RATE_LIMIT_ERROR_MESSAGE } from "@/lib/rate-limit";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { auth } from "@/auth";
 import { getDb } from "@/db";
-import { sideEffectTerms } from "@/db/schema";
-import { getOwnExperience } from "@/lib/experiences/create";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
-import { ExperienceFormFields } from "@/components/experience-form-fields";
-import { EXPERIENCE_ERROR_MESSAGES } from "@/lib/validation/experience";
-import { MedicalDisclaimer } from "@/components/medical-disclaimer";
-import { updateExperience } from "@/app/actions/experience";
+import { getOwnQuestion } from "@/lib/qa/edit";
 import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
+import { auth } from "@/auth";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { buttonVariants } from "@/components/ui/button";
+import { MedicalDisclaimer } from "@/components/medical-disclaimer";
+import { updateQuestion } from "@/app/actions/qa";
 import { UUID_RE } from "@/lib/validate";
+import { QA_ERROR_MESSAGES } from "@/lib/validation/qa";
 
-// Oturuma bağlı canlı veri; prerender edilmez.
 export const dynamic = "force-dynamic";
 
 const ERROR_MESSAGES: Record<string, string> = {
-  ...EXPERIENCE_ERROR_MESSAGES,
+  ...QA_ERROR_MESSAGES,
   moderasyon:
     "Düzenleme yayınlanamadı, içerik önceki haliyle kaldı — lütfen metni gözden geçirin.",
   limit: RATE_LIMIT_ERROR_MESSAGE,
 };
 
-export default async function DeneyimDuzenlePage({
+export default async function SoruDuzenlePage({
   params,
   searchParams,
 }: {
@@ -40,29 +38,25 @@ export default async function DeneyimDuzenlePage({
 
   const session = await auth();
   if (!session?.user) {
-    redirect(`/giris?next=${encodeURIComponent(`/deneyim-duzenle/${id}`)}`);
+    redirect(`/giris?next=${encodeURIComponent(`/soru-duzenle/${id}`)}`);
   }
 
   const db = await getDb();
-
   const profile = await getOnboardingProfile(db, session.user.id);
   if (!isOnboarded(profile)) {
-    redirect(`/hosgeldin?next=${encodeURIComponent(`/deneyim-duzenle/${id}`)}`);
+    redirect(`/hosgeldin?next=${encodeURIComponent(`/soru-duzenle/${id}`)}`);
   }
-
+  // Banlı kullanıcıya dolu form gösterip submit'te başarısız olmaktansa
+  // baştan profile yönlendirilir (buton görünürlüğü = action guard'ı).
   if (profile?.bannedAt) {
     redirect("/profil");
   }
 
-  const experience = await getOwnExperience(db, session.user.id, id);
-  if (!experience) {
+  const question = await getOwnQuestion(db, session.user.id, id);
+  if (!question) {
     notFound();
   }
 
-  const terms = await db
-    .select({ id: sideEffectTerms.id, nameTr: sideEffectTerms.nameTr })
-    .from(sideEffectTerms)
-    .orderBy(sideEffectTerms.nameTr);
   const errorMessage = hata ? ERROR_MESSAGES[hata] ?? ERROR_MESSAGES._root : null;
 
   return (
@@ -71,7 +65,7 @@ export default async function DeneyimDuzenlePage({
         <Link href="/profil" className="text-sm text-muted-foreground hover:underline">
           ← Profilim
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">Deneyimi düzenle</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Soruyu düzenle</h1>
         <p className="text-sm text-muted-foreground">
           Düzenlenen içerik yayınlanmadan önce yeniden incelemeden geçer.
         </p>
@@ -90,12 +84,41 @@ export default async function DeneyimDuzenlePage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Deneyim formu</CardTitle>
+          <CardTitle className="text-base">Soru</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={updateExperience} className="flex flex-col gap-5">
-            <input type="hidden" name="experienceId" value={experience.id} />
-            <ExperienceFormFields terms={terms} defaults={experience} />
+          <form action={updateQuestion} className="flex flex-col gap-5">
+            <input type="hidden" name="questionId" value={question.id} />
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="title" className="text-sm font-medium">
+                Başlık
+              </label>
+              <Input
+                id="title"
+                name="title"
+                type="text"
+                required
+                minLength={5}
+                maxLength={150}
+                defaultValue={question.title}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="body" className="text-sm font-medium">
+                Ayrıntı (opsiyonel)
+              </label>
+              <textarea
+                id="body"
+                name="body"
+                maxLength={5000}
+                rows={6}
+                defaultValue={question.body ?? ""}
+                className="border-input flex w-full min-w-0 rounded-md border bg-transparent px-3 py-2 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] md:text-sm"
+              />
+            </div>
+
             <button
               type="submit"
               className={buttonVariants({ variant: "default", className: "w-fit" })}

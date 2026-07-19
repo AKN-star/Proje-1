@@ -114,17 +114,26 @@ export interface OpenReportItem {
   reason: string;
   createdAt: Date;
   reporterUsername: string;
-  targetExperienceId: string;
+  targetType: "experience" | "question" | "answer";
+  targetId: string;
   targetBodyPreview: string;
-  targetAuthorId: string;
+  targetAuthorId: string | null;
   targetAuthorUsername: string;
-  targetTopicSlug: string;
+  /** İçeriğin görülebileceği site içi yol. */
+  targetHref: string;
   targetStatus: string;
 }
 
+function preview(body: string): string {
+  return body.length > REPORT_BODY_PREVIEW_LEN
+    ? `${body.slice(0, REPORT_BODY_PREVIEW_LEN)}…`
+    : body;
+}
+
 /**
- * status='open' raporları, raporlayan ve hedef deneyim önizlemesiyle
- * döner. En yeni rapor üstte.
+ * status='open' raporları (deneyim/soru/yanıt — Faz 10'da generic),
+ * raporlayan ve hedef önizlemesiyle döner. En yeni rapor üstte; hedefi
+ * silinmiş/eksik rapor önizlemesiz de listelenir (kaybolmasın).
  */
 export async function listOpenReports(db: Db): Promise<OpenReportItem[]> {
   const rows = await db
@@ -133,35 +142,219 @@ export async function listOpenReports(db: Db): Promise<OpenReportItem[]> {
       reason: reports.reason,
       createdAt: reports.createdAt,
       reporterUsername: reporters.username,
-      targetExperienceId: experiences.id,
-      targetBody: experiences.body,
-      targetAuthorId: users.id,
-      targetAuthorUsername: users.username,
-      targetTopicSlug: topics.slug,
-      targetStatus: experiences.status,
+      targetType: reports.targetType,
+      targetId: reports.targetId,
     })
     .from(reports)
     .innerJoin(reporters, eq(reporters.id, reports.reporterId))
-    .innerJoin(experiences, eq(experiences.id, reports.targetId))
-    .innerJoin(users, eq(users.id, experiences.userId))
-    .innerJoin(topics, eq(topics.id, experiences.topicId))
-    .where(and(eq(reports.status, "open"), eq(reports.targetType, "experience")))
+    .where(eq(reports.status, "open"))
     .orderBy(desc(reports.createdAt));
 
-  return rows.map((row) => ({
-    id: row.id,
-    reason: row.reason,
-    createdAt: row.createdAt,
-    reporterUsername: row.reporterUsername ?? "anonim",
-    targetExperienceId: row.targetExperienceId,
-    targetBodyPreview:
-      row.targetBody.length > REPORT_BODY_PREVIEW_LEN
-        ? `${row.targetBody.slice(0, REPORT_BODY_PREVIEW_LEN)}…`
-        : row.targetBody,
-    targetAuthorId: row.targetAuthorId,
-    targetAuthorUsername: row.targetAuthorUsername ?? "anonim",
-    targetTopicSlug: row.targetTopicSlug,
-    targetStatus: row.targetStatus,
+  if (rows.length === 0) return [];
+
+  const idsByType = {
+    experience: rows.filter((r) => r.targetType === "experience").map((r) => r.targetId),
+    question: rows.filter((r) => r.targetType === "question").map((r) => r.targetId),
+    answer: rows.filter((r) => r.targetType === "answer").map((r) => r.targetId),
+  };
+
+  const [experienceRows, questionRows, answerRows] = await Promise.all([
+    idsByType.experience.length
+      ? db
+          .select({
+            id: experiences.id,
+            body: experiences.body,
+            status: experiences.status,
+            authorId: users.id,
+            authorUsername: users.username,
+            topicSlug: topics.slug,
+          })
+          .from(experiences)
+          .innerJoin(users, eq(users.id, experiences.userId))
+          .innerJoin(topics, eq(topics.id, experiences.topicId))
+          .where(inArray(experiences.id, idsByType.experience))
+      : Promise.resolve([]),
+    idsByType.question.length
+      ? db
+          .select({
+            id: questions.id,
+            title: questions.title,
+            body: questions.body,
+            status: questions.status,
+            authorId: users.id,
+            authorUsername: users.username,
+          })
+          .from(questions)
+          .innerJoin(users, eq(users.id, questions.userId))
+          .where(inArray(questions.id, idsByType.question))
+      : Promise.resolve([]),
+    idsByType.answer.length
+      ? db
+          .select({
+            id: answers.id,
+            body: answers.body,
+            status: answers.status,
+            questionId: answers.questionId,
+            authorId: users.id,
+            authorUsername: users.username,
+          })
+          .from(answers)
+          .innerJoin(users, eq(users.id, answers.userId))
+          .where(inArray(answers.id, idsByType.answer))
+      : Promise.resolve([]),
+  ]);
+
+  const experienceById = new Map(experienceRows.map((r) => [r.id, r]));
+  const questionById = new Map(questionRows.map((r) => [r.id, r]));
+  const answerById = new Map(answerRows.map((r) => [r.id, r]));
+
+  return rows.map((row) => {
+    const base = {
+      id: row.id,
+      reason: row.reason,
+      createdAt: row.createdAt,
+      reporterUsername: row.reporterUsername ?? "anonim",
+      targetType: row.targetType,
+      targetId: row.targetId,
+    };
+    if (row.targetType === "experience") {
+      const t = experienceById.get(row.targetId);
+      return {
+        ...base,
+        targetBodyPreview: t ? preview(t.body) : "(içerik bulunamadı)",
+        targetAuthorId: t?.authorId ?? null,
+        targetAuthorUsername: t?.authorUsername ?? "anonim",
+        targetHref: t ? `/baslik/${t.topicSlug}` : "/admin",
+        targetStatus: t?.status ?? "bilinmiyor",
+      };
+    }
+    if (row.targetType === "question") {
+      const t = questionById.get(row.targetId);
+      return {
+        ...base,
+        targetBodyPreview: t
+          ? preview(t.body ? `${t.title} — ${t.body}` : t.title)
+          : "(içerik bulunamadı)",
+        targetAuthorId: t?.authorId ?? null,
+        targetAuthorUsername: t?.authorUsername ?? "anonim",
+        targetHref: t ? `/soru/${t.id}` : "/admin",
+        targetStatus: t?.status ?? "bilinmiyor",
+      };
+    }
+    const t = answerById.get(row.targetId);
+    return {
+      ...base,
+      targetBodyPreview: t ? preview(t.body) : "(içerik bulunamadı)",
+      targetAuthorId: t?.authorId ?? null,
+      targetAuthorUsername: t?.authorUsername ?? "anonim",
+      targetHref: t ? `/soru/${t.questionId}` : "/admin",
+      targetStatus: t?.status ?? "bilinmiyor",
+    };
+  });
+}
+
+export interface QaModerationQueueItem {
+  id: string;
+  kind: "question" | "answer";
+  /** Soru: başlık (+ varsa gövde); yanıt: gövde. */
+  body: string;
+  status: "flagged" | "pending";
+  createdAt: Date;
+  authorUsername: string;
+  /** Soru: kendi id'si; yanıt: bağlı olduğu soru id'si (link için). */
+  questionId: string;
+  aiReasons: string[];
+}
+
+/**
+ * Faz 10 T1: flagged/pending soru ve yanıtlar (AI gerekçeleriyle) —
+ * deneyim kuyruğunun (listModerationQueue) soru/yanıt karşılığı.
+ */
+export async function listQaModerationQueue(
+  db: Db,
+): Promise<QaModerationQueueItem[]> {
+  const [questionRows, answerRows] = await Promise.all([
+    db
+      .select({
+        id: questions.id,
+        title: questions.title,
+        body: questions.body,
+        status: questions.status,
+        createdAt: questions.createdAt,
+        authorUsername: users.username,
+      })
+      .from(questions)
+      .innerJoin(users, eq(users.id, questions.userId))
+      .where(or(eq(questions.status, "flagged"), eq(questions.status, "pending")))
+      .orderBy(desc(questions.createdAt)),
+    db
+      .select({
+        id: answers.id,
+        body: answers.body,
+        status: answers.status,
+        createdAt: answers.createdAt,
+        authorUsername: users.username,
+        questionId: answers.questionId,
+      })
+      .from(answers)
+      .innerJoin(users, eq(users.id, answers.userId))
+      .where(or(eq(answers.status, "flagged"), eq(answers.status, "pending")))
+      .orderBy(desc(answers.createdAt)),
+  ]);
+
+  const items: QaModerationQueueItem[] = [
+    ...questionRows.map((row) => ({
+      id: row.id,
+      kind: "question" as const,
+      body: row.body ? `${row.title}\n\n${row.body}` : row.title,
+      status: row.status as "flagged" | "pending",
+      createdAt: row.createdAt,
+      authorUsername: row.authorUsername ?? "anonim",
+      questionId: row.id,
+      aiReasons: [] as string[],
+    })),
+    ...answerRows.map((row) => ({
+      id: row.id,
+      kind: "answer" as const,
+      body: row.body,
+      status: row.status as "flagged" | "pending",
+      createdAt: row.createdAt,
+      authorUsername: row.authorUsername ?? "anonim",
+      questionId: row.questionId,
+      aiReasons: [] as string[],
+    })),
+  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+  if (items.length === 0) return [];
+
+  // En güncel AI log gerekçeleri (deneyim kuyruğuyla aynı desen).
+  const targetIds = items.map((item) => item.id);
+  const logRows = await db
+    .select({
+      targetId: moderationLog.targetId,
+      detail: moderationLog.detail,
+      createdAt: moderationLog.createdAt,
+    })
+    .from(moderationLog)
+    .where(
+      and(
+        inArray(moderationLog.targetType, ["question", "answer"]),
+        inArray(moderationLog.targetId, targetIds),
+        inArray(moderationLog.action, AI_LOG_ACTIONS),
+      ),
+    )
+    .orderBy(desc(moderationLog.createdAt));
+
+  const latestReasonsByTarget = new Map<string, string[]>();
+  for (const log of logRows) {
+    if (!latestReasonsByTarget.has(log.targetId)) {
+      latestReasonsByTarget.set(log.targetId, log.detail?.reasons ?? []);
+    }
+  }
+
+  return items.map((item) => ({
+    ...item,
+    aiReasons: latestReasonsByTarget.get(item.id) ?? [],
   }));
 }
 

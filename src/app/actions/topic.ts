@@ -9,36 +9,23 @@
  */
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
-import { getDb } from "@/db";
 import { validateTopicProposalInput } from "@/lib/validation/topic";
 import { moderate } from "@/lib/ai/moderate";
 import { proposeTopic } from "@/lib/topics/propose";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getOnboardingProfile, isOnboarded } from "@/lib/users/onboarding";
+import { requireOnboardedUser } from "@/lib/users/guards";
 import { logModeration } from "@/lib/moderation/log";
 
 const RETURN_PATH = "/baslik-oner";
 const FIELD_ORDER = ["name", "type", "summary"] as const;
 
 export async function submitTopicProposal(formData: FormData): Promise<void> {
-  const session = await auth();
-  if (!session?.user) {
-    redirect(`/giris?next=${encodeURIComponent(RETURN_PATH)}`);
-  }
+  const { db, userId } = await requireOnboardedUser(
+    RETURN_PATH,
+    `${RETURN_PATH}?hata=_root`,
+  );
 
-  const db = await getDb();
-
-  const profile = await getOnboardingProfile(db, session.user.id);
-  if (!isOnboarded(profile)) {
-    redirect(`/hosgeldin?next=${encodeURIComponent(RETURN_PATH)}`);
-  }
-
-  if (profile?.bannedAt) {
-    redirect(`${RETURN_PATH}?hata=_root`);
-  }
-
-  if (!(await checkRateLimit(db, session.user.id, "topic"))) {
+  if (!(await checkRateLimit(db, userId, "topic"))) {
     redirect(`${RETURN_PATH}?hata=limit`);
   }
 
@@ -67,7 +54,7 @@ export async function submitTopicProposal(formData: FormData): Promise<void> {
     // kaydedilir (bkz. qa.ts'te topic.id kullanımının analogu).
     await logModeration(db, {
       targetType: "user",
-      targetId: session.user.id,
+      targetId: userId,
       action: "ai_block",
       detail: { reasons: moderation.reasons, note: "topic-proposal-blocked-before-insert" },
       actorType: "ai",
@@ -80,7 +67,7 @@ export async function submitTopicProposal(formData: FormData): Promise<void> {
   const result = await proposeTopic(
     db,
     validation.data,
-    session.user.id,
+    userId,
     "pending",
   );
 

@@ -1,3 +1,4 @@
+import { FlashBanner } from "@/components/flash-banner";
 import { RATE_LIMIT_ERROR_MESSAGE } from "@/lib/rate-limit";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -14,9 +15,10 @@ import { TranslateButton, TranslationBlock } from "@/components/translation";
 import { ProBadge } from "@/components/pro-badge";
 import { JsonLd } from "@/components/json-ld";
 import { CopyLinkButton } from "@/components/copy-link-button";
+import { ReportForm } from "@/components/report-form";
 import { normalizeLocale, isLocale, type Locale } from "@/lib/locales";
 import { UUID_RE } from "@/lib/validate";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 // Canlı DB verisi gösterir; build sırasında prerender edilmez (PGlite
 // build worker'larında paralel açılamaz, veri de istekte taze olmalı).
@@ -29,13 +31,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   _root: "Bir şeyler ters gitti, lütfen tekrar deneyin.",
 };
 
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("tr-TR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
-}
 
 /** SEO (Faz 7 T2): soru başlığı title/description. Ağır yanıt sorgusu
  * değil, tek satırlık meta sorgusu kullanılır. */
@@ -65,10 +60,11 @@ export default async function SoruPage({
     cevir?: string;
     dil?: string;
     cevirHata?: string;
+    bildirildi?: string;
   }>;
 }) {
   const { id } = await params;
-  const { hata, cevir, dil, cevirHata } = await searchParams;
+  const { hata, cevir, dil, cevirHata, bildirildi } = await searchParams;
 
   // uuid olmayan id sorguda PG hatasına (22P02) dönüşmesin — 404.
   if (!UUID_RE.test(id)) {
@@ -192,6 +188,7 @@ export default async function SoruPage({
           </span>
           <span>{formatDate(question.createdAt)}</span>
           <CopyLinkButton />
+          <ReportForm targetType="question" targetId={question.id} returnPath={returnPath} />
         </div>
         {question.body && (
           <p className="mt-2 whitespace-pre-wrap text-sm">{question.body}</p>
@@ -227,6 +224,8 @@ export default async function SoruPage({
           {errorMessage}
         </p>
       )}
+
+      {bildirildi === "1" && <FlashBanner>Bildiriminiz alındı, teşekkürler.</FlashBanner>}
 
       {cevirHata === "1" && (
         <p
@@ -311,6 +310,13 @@ export default async function SoruPage({
                       ▼
                     </button>
                   </form>
+                  <div className="ml-auto">
+                    <ReportForm
+                      targetType="answer"
+                      targetId={answer.id}
+                      returnPath={returnPath}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>

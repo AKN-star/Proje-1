@@ -203,7 +203,9 @@ export const reports = pgTable(
     reporterId: uuid("reporter_id")
       .notNull()
       .references(() => users.id),
-    targetType: text("target_type").notNull().$type<"experience">(),
+    // Faz 10: soru/yanıt raporları da desteklenir (sözleşme zaten
+    // generic target_type tanımlar; text kolon — migration yok).
+    targetType: text("target_type").notNull().$type<"experience" | "question" | "answer">(),
     targetId: uuid("target_id").notNull(),
     reason: text("reason")
       .notNull()

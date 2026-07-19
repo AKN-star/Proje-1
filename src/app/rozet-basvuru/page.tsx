@@ -1,3 +1,4 @@
+import { FlashBanner } from "@/components/flash-banner";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
@@ -61,26 +62,24 @@ export default async function RozetBasvuruPage({
       </div>
 
       {(hata === "1" || hata === "limit") && (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
+        <FlashBanner tone="error">
           {hata === "limit"
             ? RATE_LIMIT_ERROR_MESSAGE
             : "Başvuru alınamadı. Alanları kontrol edin; bekleyen bir başvurunuz veya mevcut bir rozetiniz varsa yeni başvuru açılamaz."}
-        </p>
+        </FlashBanner>
       )}
 
       {isBanned ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
+        <FlashBanner tone="error">
           Hesabınız askıya alındığı için rozet başvurusu yapamazsınız.
-        </p>
+        </FlashBanner>
       ) : hasBadge ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-400">
-          Rozetiniz onaylı — adınızın yanında ✔ olarak görünüyor.
-        </p>
+        <FlashBanner>Rozetiniz onaylı — adınızın yanında ✔ olarak görünüyor.</FlashBanner>
       ) : hasPending ? (
-        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-400">
+        <FlashBanner tone="info">
           Başvurunuz inceleniyor. Sonuçlandığında rozet durumunuz bu sayfada
           ve Ayarlar&apos;da güncellenir.
-        </p>
+        </FlashBanner>
       ) : (
         <Card>
           <CardHeader>

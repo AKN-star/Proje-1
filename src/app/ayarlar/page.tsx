@@ -1,3 +1,4 @@
+import { FlashBanner } from "@/components/flash-banner";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
@@ -44,16 +45,10 @@ export default async function AyarlarPage({
       <h1 className="text-2xl font-semibold tracking-tight">Ayarlar</h1>
 
       {rozet === "alindi" && (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-400">
-          Rozet başvurunuz alındı; incelenince sonuç burada görünür.
-        </p>
+        <FlashBanner>Rozet başvurunuz alındı; incelenince sonuç burada görünür.</FlashBanner>
       )}
 
-      {kaydedildi === "1" && (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-400">
-          Ayarlarınız kaydedildi.
-        </p>
-      )}
+      {kaydedildi === "1" && <FlashBanner>Ayarlarınız kaydedildi.</FlashBanner>}
 
       <Card>
         <CardHeader>
