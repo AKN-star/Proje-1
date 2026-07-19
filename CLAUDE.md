@@ -6,9 +6,9 @@
 
 ## Durum
 
-- **Aktif faz:** Faz 0-9 master'a merge edildi (PR #1-#15, CI yeşil) —
-  kod tarafı tamam (Faz 9: sayfalama+index'ler, deneyim düzenleme,
-  JSON-LD, paylaş/OG, vitrin, admin kullanıcı arama); kalanlar insan
+- **Aktif faz:** Faz 0-10 master'a merge edildi (PR #1-#18, CI yeşil) —
+  kod tarafı tamam (Faz 10: soru/yanıt moderasyon kuyruğu + Bildir,
+  soru/yanıt düzenleme, guard/formatDate/banner cleanup); kalanlar insan
   adımları + onay kapıları.
 - Bekleyen insan adımları: Neon + Vercel hesapları (canlı yayın için);
   Vercel'e ANTHROPIC_API_KEY; prod'da admin:grant; opsiyonel Resend
