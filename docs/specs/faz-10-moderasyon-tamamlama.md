@@ -46,6 +46,27 @@ Kullanıcı onayı 2026-07-18 ("hepsini yap"). Üç iş:
   (updateQuestion/updateAnswer; block'ta içerik eski haliyle kalır,
   user_edit izi yazılır); profilde Düzenle linki üç türe de çıkar.
 
+## Kapanış notları
+- Final review (8 açı) bulguları: düzenleme sonrası 404 regresyonu
+  düzeltildi (soru/yanıt flag/pending'e düşerse /profil?duzenlendi=1'e
+  yönlendirilir, kullanıcı durumu "İncelemede" görür); admin QA
+  kuyruğundaki "Soru sayfası →" linki yalnız yayındaki yanıtlarda
+  gösterilir (işaretli soru 404 vermesin); üç edit sayfasına ban
+  guard'ı; QA_ERROR_MESSAGES validation/qa.ts'te tek kaynak.
+- Bilinçli kararlar / bilinen sınırlar: reviewQaContent bir soruyu
+  kaldırınca altındaki yanıtlar erişilemez kalır (Faz 8 self-remove ile
+  aynı sınıf; admin mod_restore ile geri alır — cascade ayrı tasarım
+  kararı); contentEdit rate limit her-zaman-bloklanan düzenlemeleri
+  saymaz (COUNT tabanlı limit tüm içerik türlerinde tutarlı bilinen
+  sınır); settings.ts bilinçle requireOnboardedUser'a taşınmadı (ban
+  gate'i yok, helper eklerdi — davranış korunumu).
+- Ertelenen cleanup (davranış birebir, ayrı güvenli tarama): mevcut 19
+  test dosyasının createTestDb'ye göçü; applyModerationResult ve generic
+  getOwnContent yardımcıları; edit-page scaffold birleştirme; updateOwn*
+  çift-select'in guardlı UPDATE...RETURNING'e indirilmesi.
+- SAPMA: T1b 509, T2 433, T3a 382, T3b 261 satır commit (200 yasası;
+  bu fazda migration yok, snapshot muafiyeti geçerli değil).
+
 ## Bitti tanımı
 lint+typecheck+vitest yeşil; CI yeşil; canlı: yanıt raporlanabiliyor,
 işaretli soru/yanıt admin kuyruğunda görünüp onaylanıp kaldırılabiliyor,
