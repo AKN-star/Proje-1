@@ -45,6 +45,9 @@ export default async function YanitDuzenlePage({
   if (!isOnboarded(profile)) {
     redirect(`/hosgeldin?next=${encodeURIComponent(`/yanit-duzenle/${id}`)}`);
   }
+  if (profile?.bannedAt) {
+    redirect("/profil");
+  }
 
   const answer = await getOwnAnswer(db, session.user.id, id);
   if (!answer) {

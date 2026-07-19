@@ -281,9 +281,15 @@ export default async function AdminPage({
                   </p>
                 )}
                 <div className="flex flex-wrap items-center gap-2">
-                  <Link href={`/soru/${item.questionId}`} className="text-sm hover:underline">
-                    Soru sayfası →
-                  </Link>
+                  {/* Yalnız yayındaki yanıtın soru linki verilir: işaretli
+                      soru /soru/{id} 404 verir (getQuestion yalnız published);
+                      kart içeriği zaten satır içi gösteriyor, moderasyon
+                      buradan yapılır. */}
+                  {item.kind === "answer" && (
+                    <Link href={`/soru/${item.questionId}`} className="text-sm hover:underline">
+                      Soru sayfası →
+                    </Link>
+                  )}
                   <form action={reviewQaContent}>
                     <input type="hidden" name="kind" value={item.kind} />
                     <input type="hidden" name="targetId" value={item.id} />

@@ -315,7 +315,11 @@ export async function updateQuestion(formData: FormData): Promise<void> {
 
   revalidatePath(`/soru/${questionId}`);
   revalidatePath("/profil");
-  redirect(`/soru/${questionId}`);
+  // Düzenleme flag/pending'e düşerse /soru/{id} 404 verir (getQuestion
+  // yalnız published döndürür) — kullanıcı kendi düzenlemesinden sonra
+  // 404 görmesin diye profile yönlendirilir (durumu orada "İncelemede"
+  // görür). Published kaldıysa doğrudan içeriğe döner.
+  redirect(status === "published" ? `/soru/${questionId}` : "/profil?duzenlendi=1");
 }
 
 /** Kendi yanıtını düzenler (Faz 10 T3). updateQuestion ile aynı akış. */
@@ -383,5 +387,9 @@ export async function updateAnswer(formData: FormData): Promise<void> {
 
   revalidatePath(`/soru/${existing.questionId}`);
   revalidatePath("/profil");
-  redirect(`/soru/${existing.questionId}`);
+  // Yanıt flag/pending'e düşerse soru sayfası render olur ama yanıt
+  // görünmez — kullanıcı düzenlemesinin akıbetini profilde görsün.
+  redirect(
+    status === "published" ? `/soru/${existing.questionId}` : "/profil?duzenlendi=1",
+  );
 }

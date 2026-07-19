@@ -38,7 +38,7 @@ const STATUS_LABELS: Record<string, string> = {
 export default async function ProfilPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kaldirildi?: string; hata?: string }>;
+  searchParams: Promise<{ kaldirildi?: string; hata?: string; duzenlendi?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) {
@@ -54,7 +54,7 @@ export default async function ProfilPage({
     redirect("/hosgeldin?next=%2Fprofil");
   }
 
-  const { kaldirildi, hata } = await searchParams;
+  const { kaldirildi, hata, duzenlendi } = await searchParams;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-8 px-6 py-12">
@@ -68,6 +68,11 @@ export default async function ProfilPage({
         </Link>
       </div>
 
+      {duzenlendi === "1" && (
+        <FlashBanner tone="info">
+          Düzenlemeniz alındı ve yeniden incelemeye girdi; onaylanınca yayında görünecek.
+        </FlashBanner>
+      )}
       {kaldirildi === "1" && <FlashBanner>İçerik kaldırıldı.</FlashBanner>}
       {hata === "onay" && (
         <FlashBanner tone="error">

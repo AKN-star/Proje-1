@@ -50,6 +50,10 @@ export default async function DeneyimDuzenlePage({
     redirect(`/hosgeldin?next=${encodeURIComponent(`/deneyim-duzenle/${id}`)}`);
   }
 
+  if (profile?.bannedAt) {
+    redirect("/profil");
+  }
+
   const experience = await getOwnExperience(db, session.user.id, id);
   if (!experience) {
     notFound();

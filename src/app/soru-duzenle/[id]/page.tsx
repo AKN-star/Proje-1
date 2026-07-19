@@ -11,16 +11,15 @@ import { buttonVariants } from "@/components/ui/button";
 import { MedicalDisclaimer } from "@/components/medical-disclaimer";
 import { updateQuestion } from "@/app/actions/qa";
 import { UUID_RE } from "@/lib/validate";
+import { QA_ERROR_MESSAGES } from "@/lib/validation/qa";
 
 export const dynamic = "force-dynamic";
 
 const ERROR_MESSAGES: Record<string, string> = {
-  title: "Başlık 5 ile 150 karakter arasında olmalıdır.",
-  body: "Metin boş bırakılabilir veya 2 ile 5000 karakter arasında olmalıdır.",
+  ...QA_ERROR_MESSAGES,
   moderasyon:
     "Düzenleme yayınlanamadı, içerik önceki haliyle kaldı — lütfen metni gözden geçirin.",
   limit: RATE_LIMIT_ERROR_MESSAGE,
-  _root: "Bir şeyler ters gitti, lütfen tekrar deneyin.",
 };
 
 export default async function SoruDuzenlePage({
@@ -46,6 +45,11 @@ export default async function SoruDuzenlePage({
   const profile = await getOnboardingProfile(db, session.user.id);
   if (!isOnboarded(profile)) {
     redirect(`/hosgeldin?next=${encodeURIComponent(`/soru-duzenle/${id}`)}`);
+  }
+  // Banlı kullanıcıya dolu form gösterip submit'te başarısız olmaktansa
+  // baştan profile yönlendirilir (buton görünürlüğü = action guard'ı).
+  if (profile?.bannedAt) {
+    redirect("/profil");
   }
 
   const question = await getOwnQuestion(db, session.user.id, id);
